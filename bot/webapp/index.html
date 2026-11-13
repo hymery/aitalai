@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Башкирская языковая школа</title>
+  <script src="telegram-web-app.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="auth-error" class="auth-screen hidden">
+    <div class="auth-card">
+      <div class="auth-icon">🔒</div>
+      <h1 id="auth-title">Сначала пройди регистрацию в боте</h1>
+      <p id="auth-text">
+        Откройте Telegram-бота, отправьте /start и пройдите регистрацию.
+        После этого вернитесь в приложение.
+      </p>
+    </div>
+  </div>
+
+  <div class="app">
+    <header class="topbar">
+      <div>
+        <p class="topbar-eyebrow">Башкирский ↔ русский</p>
+        <h1 class="topbar-title">Языковая школа</h1>
+      </div>
+      <span id="dev-note" class="dev-note hidden">демо</span>
+    </header>
+
+    <main class="content">
+      <section id="screen-task" class="screen" data-screen="task">
+        <div class="screen-head">
+          <h2>Ежедневное задание</h2>
+          <p>Переведите фразу с башкирского на русский.</p>
+        </div>
+        <div id="task-body" class="screen-body"></div>
+      </section>
+
+      <section id="screen-ratings" class="screen" data-screen="ratings">
+        <div class="screen-head">
+          <h2>Рейтинг</h2>
+          <p>Топ-10 учеников, школ, классов и других категорий.</p>
+        </div>
+        <div id="rating-tabs" class="tabs" role="tablist" aria-label="Категория рейтинга"></div>
+        <div id="rating-periods" class="periods" role="group" aria-label="Период"></div>
+        <div id="rating-body" class="screen-body"></div>
+      </section>
+
+      <section id="screen-profile" class="screen" data-screen="profile">
+        <div class="screen-head">
+          <h2>Профиль</h2>
+          <p>Ваши очки, уровень, серия дней и точность.</p>
+        </div>
+        <div id="profile-body" class="screen-body"></div>
+      </section>
+
+      <section id="screen-teacher" class="screen" data-screen="teacher">
+        <div class="screen-head">
+          <h2>Кабинет учителя</h2>
+          <p>Отчёт по успеваемости школы и класса.</p>
+        </div>
+        <form id="report-form" class="card form" autocomplete="off">
+          <label class="field">
+            <span>Школа</span>
+            <input id="report-school" type="text" placeholder="Например: Школа №1" required>
+          </label>
+          <label class="field">
+            <span>Класс</span>
+            <input id="report-class" type="text" placeholder="Например: 9А" required>
+          </label>
+          <button class="btn btn-primary" type="submit">Показать отчёт</button>
+        </form>
+        <div id="report-body" class="screen-body"></div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Разделы приложения">
+      <a class="nav-item" href="#task" data-nav="task">
+        <span class="nav-icon" aria-hidden="true">📝</span>
+        <span>Задание</span>
+      </a>
+      <a class="nav-item" href="#ratings" data-nav="ratings">
+        <span class="nav-icon" aria-hidden="true">🏆</span>
+        <span>Рейтинг</span>
+      </a>
+      <a class="nav-item" href="#profile" data-nav="profile">
+        <span class="nav-icon" aria-hidden="true">👤</span>
+        <span>Профиль</span>
+      </a>
+      <a class="nav-item" href="#teacher" data-nav="teacher">
+        <span class="nav-icon" aria-hidden="true">🎓</span>
+        <span>Учитель</span>
+      </a>
+    </nav>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,228 @@
+2026-11-13 13:54:39,881 | WARNING  | bot | Включён USE_MOCK=1: все запросы к API заменены заглушкой. Для работы с реальным backend установите USE_MOCK=0.
+2026-11-13 13:54:39,883 | INFO     | storage | Загружено пользователей из реестра: 1
+2026-11-13 13:54:40,071 | INFO     | webapp_server | WebApp server started on http://localhost:8080 (папка: C:\Users\ASUS\Documents\Проект по умолчанию\webapp)
+2026-11-13 13:54:40,520 | INFO     | bot | Bot started in MOCK mode (API: http://localhost:8000) via proxy
+2026-11-13 13:54:40,520 | INFO     | bot | Mini App: https://89cada2e6d0325c6-136-169-232-161.serveousercontent.com
+2026-11-13 13:54:40,521 | INFO     | bot | Напоминания: включены, время 09:00
+2026-11-13 13:54:40,521 | INFO     | aiogram.dispatcher | Start polling
+2026-11-13 13:54:40,521 | INFO     | reminders | Ежедневные напоминания включены: 09:00 (локальное время), пользователей в реестре: 1
+2026-11-13 13:54:40,609 | INFO     | aiogram.dispatcher | Run polling for bot @bashkir_lang_bot id=9190899683 - 'Башкирская языковая школа'
+2026-11-13 14:57:51,708 | ERROR    | aiogram.dispatcher | Failed to fetch updates - TelegramNetworkError: HTTP Client says - Request timeout error
+2026-11-13 14:57:51,828 | WARNING  | aiogram.dispatcher | Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 9190899683)
+2026-11-13 14:57:54,875 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 14:57:54,875 | WARNING  | aiogram.dispatcher | Sleep for 1.386364 seconds and try again... (tryings = 1, bot id = 9190899683)
+2026-11-13 14:57:58,297 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 14:57:58,298 | WARNING  | aiogram.dispatcher | Sleep for 1.789251 seconds and try again... (tryings = 2, bot id = 9190899683)
+2026-11-13 14:58:02,126 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 14:58:02,127 | WARNING  | aiogram.dispatcher | Sleep for 2.269401 seconds and try again... (tryings = 3, bot id = 9190899683)
+2026-11-13 14:58:06,433 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 14:58:06,434 | WARNING  | aiogram.dispatcher | Sleep for 3.049833 seconds and try again... (tryings = 4, bot id = 9190899683)
+2026-11-13 14:58:11,542 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 14:58:11,543 | WARNING  | aiogram.dispatcher | Sleep for 3.834243 seconds and try again... (tryings = 5, bot id = 9190899683)
+2026-11-13 14:58:17,410 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 14:58:17,411 | WARNING  | aiogram.dispatcher | Sleep for 5.068928 seconds and try again... (tryings = 6, bot id = 9190899683)
+2026-11-13 14:58:24,529 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 14:58:24,530 | WARNING  | aiogram.dispatcher | Sleep for 4.967428 seconds and try again... (tryings = 7, bot id = 9190899683)
+2026-11-13 14:58:31,534 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 14:58:31,535 | WARNING  | aiogram.dispatcher | Sleep for 5.045840 seconds and try again... (tryings = 8, bot id = 9190899683)
+2026-11-13 14:58:38,620 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 14:58:38,621 | WARNING  | aiogram.dispatcher | Sleep for 5.274577 seconds and try again... (tryings = 9, bot id = 9190899683)
+2026-11-13 14:58:45,927 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 14:58:45,928 | WARNING  | aiogram.dispatcher | Sleep for 4.896679 seconds and try again... (tryings = 10, bot id = 9190899683)
+2026-11-13 14:58:52,868 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 14:58:52,869 | WARNING  | aiogram.dispatcher | Sleep for 4.903066 seconds and try again... (tryings = 11, bot id = 9190899683)
+2026-11-13 14:58:59,810 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 14:58:59,811 | WARNING  | aiogram.dispatcher | Sleep for 4.836095 seconds and try again... (tryings = 12, bot id = 9190899683)
+2026-11-13 14:59:06,690 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 14:59:06,691 | WARNING  | aiogram.dispatcher | Sleep for 4.902356 seconds and try again... (tryings = 13, bot id = 9190899683)
+2026-11-13 14:59:13,633 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 14:59:13,634 | WARNING  | aiogram.dispatcher | Sleep for 4.890570 seconds and try again... (tryings = 14, bot id = 9190899683)
+2026-11-13 14:59:20,561 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 14:59:20,562 | WARNING  | aiogram.dispatcher | Sleep for 4.886378 seconds and try again... (tryings = 15, bot id = 9190899683)
+2026-11-13 14:59:27,484 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 14:59:27,485 | WARNING  | aiogram.dispatcher | Sleep for 5.028073 seconds and try again... (tryings = 16, bot id = 9190899683)
+2026-11-13 14:59:34,538 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 14:59:34,539 | WARNING  | aiogram.dispatcher | Sleep for 5.037836 seconds and try again... (tryings = 17, bot id = 9190899683)
+2026-11-13 14:59:41,622 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 14:59:41,623 | WARNING  | aiogram.dispatcher | Sleep for 5.082434 seconds and try again... (tryings = 18, bot id = 9190899683)
+2026-11-13 14:59:48,758 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 14:59:48,759 | WARNING  | aiogram.dispatcher | Sleep for 4.998429 seconds and try again... (tryings = 19, bot id = 9190899683)
+2026-11-13 14:59:55,810 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 14:59:55,811 | WARNING  | aiogram.dispatcher | Sleep for 5.086890 seconds and try again... (tryings = 20, bot id = 9190899683)
+2026-11-13 15:00:02,928 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:00:02,929 | WARNING  | aiogram.dispatcher | Sleep for 4.937990 seconds and try again... (tryings = 21, bot id = 9190899683)
+2026-11-13 15:00:09,917 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:00:09,918 | WARNING  | aiogram.dispatcher | Sleep for 5.174419 seconds and try again... (tryings = 22, bot id = 9190899683)
+2026-11-13 15:00:17,138 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:00:17,139 | WARNING  | aiogram.dispatcher | Sleep for 5.020049 seconds and try again... (tryings = 23, bot id = 9190899683)
+2026-11-13 15:00:24,205 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:00:24,206 | WARNING  | aiogram.dispatcher | Sleep for 4.875952 seconds and try again... (tryings = 24, bot id = 9190899683)
+2026-11-13 15:00:31,130 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:00:31,131 | WARNING  | aiogram.dispatcher | Sleep for 5.000405 seconds and try again... (tryings = 25, bot id = 9190899683)
+2026-11-13 15:00:38,173 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:00:38,174 | WARNING  | aiogram.dispatcher | Sleep for 5.020638 seconds and try again... (tryings = 26, bot id = 9190899683)
+2026-11-13 15:00:45,234 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:00:45,235 | WARNING  | aiogram.dispatcher | Sleep for 4.842698 seconds and try again... (tryings = 27, bot id = 9190899683)
+2026-11-13 15:00:52,131 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:00:52,132 | WARNING  | aiogram.dispatcher | Sleep for 5.021165 seconds and try again... (tryings = 28, bot id = 9190899683)
+2026-11-13 15:00:59,196 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:00:59,197 | WARNING  | aiogram.dispatcher | Sleep for 5.083879 seconds and try again... (tryings = 29, bot id = 9190899683)
+2026-11-13 15:01:06,322 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:01:06,323 | WARNING  | aiogram.dispatcher | Sleep for 5.171662 seconds and try again... (tryings = 30, bot id = 9190899683)
+2026-11-13 15:01:13,537 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:01:13,538 | WARNING  | aiogram.dispatcher | Sleep for 4.889280 seconds and try again... (tryings = 31, bot id = 9190899683)
+2026-11-13 15:01:20,470 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:01:20,471 | WARNING  | aiogram.dispatcher | Sleep for 4.988081 seconds and try again... (tryings = 32, bot id = 9190899683)
+2026-11-13 15:01:27,504 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:01:27,505 | WARNING  | aiogram.dispatcher | Sleep for 5.030726 seconds and try again... (tryings = 33, bot id = 9190899683)
+2026-11-13 15:01:34,585 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:01:34,586 | WARNING  | aiogram.dispatcher | Sleep for 4.980422 seconds and try again... (tryings = 34, bot id = 9190899683)
+2026-11-13 15:01:41,605 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:01:41,606 | WARNING  | aiogram.dispatcher | Sleep for 4.855562 seconds and try again... (tryings = 35, bot id = 9190899683)
+2026-11-13 15:01:48,506 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:01:48,507 | WARNING  | aiogram.dispatcher | Sleep for 4.972723 seconds and try again... (tryings = 36, bot id = 9190899683)
+2026-11-13 15:01:55,516 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:01:55,517 | WARNING  | aiogram.dispatcher | Sleep for 5.027459 seconds and try again... (tryings = 37, bot id = 9190899683)
+2026-11-13 15:02:02,582 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:02:02,583 | WARNING  | aiogram.dispatcher | Sleep for 4.956807 seconds and try again... (tryings = 38, bot id = 9190899683)
+2026-11-13 15:02:09,584 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:02:09,585 | WARNING  | aiogram.dispatcher | Sleep for 4.967066 seconds and try again... (tryings = 39, bot id = 9190899683)
+2026-11-13 15:02:16,614 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:02:16,615 | WARNING  | aiogram.dispatcher | Sleep for 5.047076 seconds and try again... (tryings = 40, bot id = 9190899683)
+2026-11-13 15:02:23,700 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:02:23,701 | WARNING  | aiogram.dispatcher | Sleep for 5.126636 seconds and try again... (tryings = 41, bot id = 9190899683)
+2026-11-13 15:02:30,873 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:02:30,874 | WARNING  | aiogram.dispatcher | Sleep for 5.107238 seconds and try again... (tryings = 42, bot id = 9190899683)
+2026-11-13 15:02:38,019 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:02:38,020 | WARNING  | aiogram.dispatcher | Sleep for 4.992777 seconds and try again... (tryings = 43, bot id = 9190899683)
+2026-11-13 15:02:45,052 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:02:45,053 | WARNING  | aiogram.dispatcher | Sleep for 4.923226 seconds and try again... (tryings = 44, bot id = 9190899683)
+2026-11-13 15:02:52,019 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:02:52,020 | WARNING  | aiogram.dispatcher | Sleep for 5.110438 seconds and try again... (tryings = 45, bot id = 9190899683)
+2026-11-13 15:02:59,185 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:02:59,186 | WARNING  | aiogram.dispatcher | Sleep for 4.908345 seconds and try again... (tryings = 46, bot id = 9190899683)
+2026-11-13 15:03:06,134 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:03:06,135 | WARNING  | aiogram.dispatcher | Sleep for 4.837565 seconds and try again... (tryings = 47, bot id = 9190899683)
+2026-11-13 15:03:13,017 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:03:13,018 | WARNING  | aiogram.dispatcher | Sleep for 4.835383 seconds and try again... (tryings = 48, bot id = 9190899683)
+2026-11-13 15:03:19,907 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:03:19,908 | WARNING  | aiogram.dispatcher | Sleep for 5.072561 seconds and try again... (tryings = 49, bot id = 9190899683)
+2026-11-13 15:03:27,014 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:03:27,015 | WARNING  | aiogram.dispatcher | Sleep for 5.066450 seconds and try again... (tryings = 50, bot id = 9190899683)
+2026-11-13 15:03:34,120 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:03:34,121 | WARNING  | aiogram.dispatcher | Sleep for 4.891223 seconds and try again... (tryings = 51, bot id = 9190899683)
+2026-11-13 15:03:41,057 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:03:41,058 | WARNING  | aiogram.dispatcher | Sleep for 4.944404 seconds and try again... (tryings = 52, bot id = 9190899683)
+2026-11-13 15:03:48,039 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:03:48,040 | WARNING  | aiogram.dispatcher | Sleep for 4.918133 seconds and try again... (tryings = 53, bot id = 9190899683)
+2026-11-13 15:03:54,995 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:03:54,996 | WARNING  | aiogram.dispatcher | Sleep for 5.079710 seconds and try again... (tryings = 54, bot id = 9190899683)
+2026-11-13 15:04:02,129 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:04:02,131 | WARNING  | aiogram.dispatcher | Sleep for 5.014673 seconds and try again... (tryings = 55, bot id = 9190899683)
+2026-11-13 15:04:09,190 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:04:09,191 | WARNING  | aiogram.dispatcher | Sleep for 5.046308 seconds and try again... (tryings = 56, bot id = 9190899683)
+2026-11-13 15:04:16,293 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:04:16,294 | WARNING  | aiogram.dispatcher | Sleep for 5.092818 seconds and try again... (tryings = 57, bot id = 9190899683)
+2026-11-13 15:04:23,433 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:04:23,434 | WARNING  | aiogram.dispatcher | Sleep for 4.994172 seconds and try again... (tryings = 58, bot id = 9190899683)
+2026-11-13 15:04:30,464 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:04:30,465 | WARNING  | aiogram.dispatcher | Sleep for 4.934724 seconds and try again... (tryings = 59, bot id = 9190899683)
+2026-11-13 15:04:37,436 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:04:37,437 | WARNING  | aiogram.dispatcher | Sleep for 4.840622 seconds and try again... (tryings = 60, bot id = 9190899683)
+2026-11-13 15:04:44,321 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:04:44,322 | WARNING  | aiogram.dispatcher | Sleep for 5.033097 seconds and try again... (tryings = 61, bot id = 9190899683)
+2026-11-13 15:04:51,401 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:04:51,402 | WARNING  | aiogram.dispatcher | Sleep for 4.976463 seconds and try again... (tryings = 62, bot id = 9190899683)
+2026-11-13 15:04:58,408 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:04:58,409 | WARNING  | aiogram.dispatcher | Sleep for 5.093153 seconds and try again... (tryings = 63, bot id = 9190899683)
+2026-11-13 15:05:05,560 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:05:05,561 | WARNING  | aiogram.dispatcher | Sleep for 4.984610 seconds and try again... (tryings = 64, bot id = 9190899683)
+2026-11-13 15:05:12,585 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:05:12,586 | WARNING  | aiogram.dispatcher | Sleep for 5.087563 seconds and try again... (tryings = 65, bot id = 9190899683)
+2026-11-13 15:05:19,710 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:05:19,711 | WARNING  | aiogram.dispatcher | Sleep for 5.029035 seconds and try again... (tryings = 66, bot id = 9190899683)
+2026-11-13 15:05:26,784 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:05:26,785 | WARNING  | aiogram.dispatcher | Sleep for 4.989036 seconds and try again... (tryings = 67, bot id = 9190899683)
+2026-11-13 15:05:33,815 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:05:33,816 | WARNING  | aiogram.dispatcher | Sleep for 5.015850 seconds and try again... (tryings = 68, bot id = 9190899683)
+2026-11-13 15:05:40,884 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:05:40,885 | WARNING  | aiogram.dispatcher | Sleep for 5.133831 seconds and try again... (tryings = 69, bot id = 9190899683)
+2026-11-13 15:05:48,064 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:05:48,065 | WARNING  | aiogram.dispatcher | Sleep for 5.029568 seconds and try again... (tryings = 70, bot id = 9190899683)
+2026-11-13 15:05:55,151 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:05:55,152 | WARNING  | aiogram.dispatcher | Sleep for 4.980400 seconds and try again... (tryings = 71, bot id = 9190899683)
+2026-11-13 15:06:02,171 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:06:02,173 | WARNING  | aiogram.dispatcher | Sleep for 4.890979 seconds and try again... (tryings = 72, bot id = 9190899683)
+2026-11-13 15:06:09,100 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:06:09,101 | WARNING  | aiogram.dispatcher | Sleep for 5.007547 seconds and try again... (tryings = 73, bot id = 9190899683)
+2026-11-13 15:06:16,149 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:06:16,150 | WARNING  | aiogram.dispatcher | Sleep for 4.984644 seconds and try again... (tryings = 74, bot id = 9190899683)
+2026-11-13 15:06:23,179 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:06:23,180 | WARNING  | aiogram.dispatcher | Sleep for 4.854231 seconds and try again... (tryings = 75, bot id = 9190899683)
+2026-11-13 15:06:30,072 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:06:30,073 | WARNING  | aiogram.dispatcher | Sleep for 4.853576 seconds and try again... (tryings = 76, bot id = 9190899683)
+2026-11-13 15:06:36,979 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:06:36,980 | WARNING  | aiogram.dispatcher | Sleep for 5.061643 seconds and try again... (tryings = 77, bot id = 9190899683)
+2026-11-13 15:06:44,086 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:06:44,087 | WARNING  | aiogram.dispatcher | Sleep for 5.083254 seconds and try again... (tryings = 78, bot id = 9190899683)
+2026-11-13 15:06:51,204 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:06:51,205 | WARNING  | aiogram.dispatcher | Sleep for 5.140348 seconds and try again... (tryings = 79, bot id = 9190899683)
+2026-11-13 15:06:58,391 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:06:58,392 | WARNING  | aiogram.dispatcher | Sleep for 4.980888 seconds and try again... (tryings = 80, bot id = 9190899683)
+2026-11-13 15:07:05,412 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:07:05,412 | WARNING  | aiogram.dispatcher | Sleep for 5.222211 seconds and try again... (tryings = 81, bot id = 9190899683)
+2026-11-13 15:07:12,671 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:07:12,672 | WARNING  | aiogram.dispatcher | Sleep for 5.037849 seconds and try again... (tryings = 82, bot id = 9190899683)
+2026-11-13 15:07:19,744 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:07:19,745 | WARNING  | aiogram.dispatcher | Sleep for 4.934834 seconds and try again... (tryings = 83, bot id = 9190899683)
+2026-11-13 15:07:26,727 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:07:26,728 | WARNING  | aiogram.dispatcher | Sleep for 4.805968 seconds and try again... (tryings = 84, bot id = 9190899683)
+2026-11-13 15:07:33,574 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:07:33,575 | WARNING  | aiogram.dispatcher | Sleep for 4.921500 seconds and try again... (tryings = 85, bot id = 9190899683)
+2026-11-13 15:07:40,531 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:07:40,532 | WARNING  | aiogram.dispatcher | Sleep for 4.984591 seconds and try again... (tryings = 86, bot id = 9190899683)
+2026-11-13 15:07:47,556 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:07:47,557 | WARNING  | aiogram.dispatcher | Sleep for 5.092971 seconds and try again... (tryings = 87, bot id = 9190899683)
+2026-11-13 15:07:54,688 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:07:54,689 | WARNING  | aiogram.dispatcher | Sleep for 4.794683 seconds and try again... (tryings = 88, bot id = 9190899683)
+2026-11-13 15:08:01,524 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:08:01,525 | WARNING  | aiogram.dispatcher | Sleep for 4.946363 seconds and try again... (tryings = 89, bot id = 9190899683)
+2026-11-13 15:08:08,508 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:08:08,509 | WARNING  | aiogram.dispatcher | Sleep for 4.854469 seconds and try again... (tryings = 90, bot id = 9190899683)
+2026-11-13 15:08:15,413 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:08:15,414 | WARNING  | aiogram.dispatcher | Sleep for 5.079786 seconds and try again... (tryings = 91, bot id = 9190899683)
+2026-11-13 15:08:22,530 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:08:22,531 | WARNING  | aiogram.dispatcher | Sleep for 4.906644 seconds and try again... (tryings = 92, bot id = 9190899683)
+2026-11-13 15:08:29,486 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:08:29,487 | WARNING  | aiogram.dispatcher | Sleep for 4.825566 seconds and try again... (tryings = 93, bot id = 9190899683)
+2026-11-13 15:08:36,360 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:08:36,361 | WARNING  | aiogram.dispatcher | Sleep for 5.068133 seconds and try again... (tryings = 94, bot id = 9190899683)
+2026-11-13 15:08:43,474 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:08:43,475 | WARNING  | aiogram.dispatcher | Sleep for 5.004059 seconds and try again... (tryings = 95, bot id = 9190899683)
+2026-11-13 15:25:31,269 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:25:31,270 | WARNING  | aiogram.dispatcher | Sleep for 4.920408 seconds and try again... (tryings = 96, bot id = 9190899683)
+2026-11-13 15:25:38,229 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:25:38,230 | WARNING  | aiogram.dispatcher | Sleep for 5.090800 seconds and try again... (tryings = 97, bot id = 9190899683)
+2026-11-13 15:25:45,346 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:25:45,360 | WARNING  | aiogram.dispatcher | Sleep for 5.060387 seconds and try again... (tryings = 98, bot id = 9190899683)
+2026-11-13 15:25:52,463 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:25:52,465 | WARNING  | aiogram.dispatcher | Sleep for 5.041155 seconds and try again... (tryings = 99, bot id = 9190899683)
+2026-11-13 15:25:59,534 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:25:59,535 | WARNING  | aiogram.dispatcher | Sleep for 5.076840 seconds and try again... (tryings = 100, bot id = 9190899683)
+2026-11-13 15:26:06,671 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:26:06,673 | WARNING  | aiogram.dispatcher | Sleep for 4.914147 seconds and try again... (tryings = 101, bot id = 9190899683)
+2026-11-13 15:26:13,634 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:26:13,636 | WARNING  | aiogram.dispatcher | Sleep for 5.033224 seconds and try again... (tryings = 102, bot id = 9190899683)
+2026-11-13 15:26:20,712 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:26:20,713 | WARNING  | aiogram.dispatcher | Sleep for 5.280547 seconds and try again... (tryings = 103, bot id = 9190899683)
+2026-11-13 15:26:28,033 | ERROR    | aiogram.dispatcher | Failed to fetch updates - ProxyConnectionError: [Errno 22] Couldn't connect to proxy 127.0.0.1:10808 [Удаленный компьютер отклонил это сетевое подключение]
+2026-11-13 15:26:28,034 | WARNING  | aiogram.dispatcher | Sleep for 5.015098 seconds and try again... (tryings = 104, bot id = 9190899683)
+2026-11-13 16:05:10,665 | WARNING  | bot | Включён USE_MOCK=1: все запросы к API заменены заглушкой. Для работы с реальным backend установите USE_MOCK=0.
+2026-11-13 16:05:10,668 | INFO     | storage | Загружено пользователей из реестра: 1
+2026-11-13 16:05:10,912 | INFO     | webapp_server | WebApp server started on http://localhost:8080 (папка: C:\Games\Проект по умолчанию\webapp)
+2026-11-13 16:05:11,509 | INFO     | bot | Bot started in MOCK mode (API: http://localhost:8000) via proxy
+2026-11-13 16:05:11,510 | INFO     | bot | Mini App: https://89cada2e6d0325c6-136-169-232-161.serveousercontent.com
+2026-11-13 16:05:11,511 | INFO     | bot | Напоминания: включены, время 09:00
+2026-11-13 16:05:11,512 | INFO     | aiogram.dispatcher | Start polling
+2026-11-13 16:05:11,512 | INFO     | reminders | Ежедневные напоминания включены: 09:00 (локальное время), пользователей в реестре: 1
+2026-11-13 16:05:11,653 | INFO     | aiogram.dispatcher | Run polling for bot @bashkir_lang_bot id=9190899683 - 'Башкирская языковая школа'
