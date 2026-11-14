@@ -31,15 +31,32 @@ from sqlalchemy.orm import Session
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from database import Base, engine, get_db
-from models import Answer, Badge, BotState, CourseProgress, Fragment, Translation, User
+from models import (
+    Answer,
+    Badge,
+    BotState,
+    CourseProgress,
+    CourseUnit,
+    Fragment,
+    Translation,
+    UnitExercise,
+    UnitStoryStep,
+    UnitVocabulary,
+    User,
+    UserUnitProgress,
+)
 from schemas import (
     AnswerCreate,
     AnswerResponse,
     AuthResponse,
     BotStateCreate,
     BotStateResponse,
+    CourseCircleComplete,
+    CourseCircleCompleteResponse,
     CourseComplete,
     CourseProgressResponse,
+    CourseUnitDetailResponse,
+    CourseUnitSummary,
     DailyTaskResponse,
     ModerationResolve,
     TelegramAuth,
@@ -1060,6 +1077,327 @@ def export_translations(
         headers={
             "Content-Disposition": 'attachment; filename="confirmed_translations.csv"'
         },
+    )
+
+
+COURSE_CIRCLES = {
+    "circle_1": ("circle_1_done", 20),
+    "circle_2": ("circle_2_done", 40),
+    "circle_3": ("circle_3_done", 60),
+    "boss_story": ("boss_done", 100),
+}
+
+
+def course_units_query(db: Session) -> list[CourseUnit]:
+    return db.query(CourseUnit).order_by(CourseUnit.order_index, CourseUnit.id).all()
+
+
+def user_unit_progress_map(db: Session, user_id: int) -> dict[int, UserUnitProgress]:
+    rows = (
+        db.query(UserUnitProgress)
+        .filter(UserUnitProgress.user_id == user_id)
+        .all()
+    )
+    return {row.unit_id: row for row in rows}
+
+
+def course_unit_unlocked(
+    unit: CourseUnit,
+    units: list[CourseUnit],
+    progress_by_unit: dict[int, UserUnitProgress],
+) -> bool:
+    position = next(index for index, item in enumerate(units) if item.id == unit.id)
+    if position == 0:
+        return True
+    previous_progress = progress_by_unit.get(units[position - 1].id)
+    return bool(previous_progress and previous_progress.boss_done)
+
+
+def build_unit_progress_status(
+    unit: CourseUnit,
+    units: list[CourseUnit],
+    progress_by_unit: dict[int, UserUnitProgress],
+) -> dict:
+    progress = progress_by_unit.get(unit.id)
+    unit_unlocked = course_unit_unlocked(unit, units, progress_by_unit)
+    statuses = {}
+    previous_completed = True
+    for circle, (field_name, _) in COURSE_CIRCLES.items():
+        completed = bool(progress and getattr(progress, field_name))
+        unlocked = unit_unlocked and previous_completed
+        statuses[circle] = {"unlocked": unlocked, "completed": completed}
+        previous_completed = completed
+
+    if not unit_unlocked:
+        current_circle = "locked"
+    else:
+        current_circle = next(
+            (
+                circle
+                for circle, state in statuses.items()
+                if state["unlocked"] and not state["completed"]
+            ),
+            "completed",
+        )
+    return {**statuses, "current_circle": current_circle}
+
+
+def course_unit_summary(
+    db: Session,
+    unit: CourseUnit,
+    units: list[CourseUnit],
+    progress_by_unit: dict[int, UserUnitProgress],
+) -> dict:
+    vocabulary_count = (
+        db.query(UnitVocabulary).filter(UnitVocabulary.unit_id == unit.id).count()
+    )
+    return {
+        "id": unit.id,
+        "order_index": unit.order_index,
+        "title": unit.title,
+        "description": unit.description,
+        "character_name": unit.character_name,
+        "theme_slug": unit.theme_slug,
+        "vocabulary_count": vocabulary_count,
+        "unlocked": course_unit_unlocked(unit, units, progress_by_unit),
+        "progress": build_unit_progress_status(unit, units, progress_by_unit),
+    }
+
+
+def find_course_unit(db: Session, unit_id: int) -> CourseUnit:
+    unit = db.get(CourseUnit, unit_id)
+    if unit is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Курс не найден."
+        )
+    return unit
+
+
+def generate_unit_quiz(unit_id: int, vocabulary: list[UnitVocabulary]) -> list[dict]:
+    generator = random.Random(unit_id * 1000)
+    cards = vocabulary[:]
+    generator.shuffle(cards)
+    directions = ["ba_to_ru"] * 4 + ["ru_to_ba"] * 4
+    generator.shuffle(directions)
+    quiz = []
+    for index, card in enumerate(cards):
+        direction = directions[index]
+        correct_answer = card.ru_word if direction == "ba_to_ru" else card.ba_word
+        other_answers = [
+            item.ru_word if direction == "ba_to_ru" else item.ba_word
+            for item in vocabulary
+            if item.id != card.id
+        ]
+        options = generator.sample(other_answers, 3) + [correct_answer]
+        generator.shuffle(options)
+        quiz.append(
+            {
+                "id": f"{unit_id}-quiz-{index + 1}",
+                "direction": direction,
+                "prompt": card.ba_word if direction == "ba_to_ru" else card.ru_word,
+                "options": options,
+                "correct_answer": correct_answer,
+            }
+        )
+    return quiz
+
+
+@app.get(
+    "/courses/units",
+    response_model=list[CourseUnitSummary],
+    tags=["Курсы"],
+    summary="Список курсов и прогресс текущего пользователя",
+)
+def list_course_units(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    units = course_units_query(db)
+    progress_by_unit = user_unit_progress_map(db, user.id)
+    return [
+        course_unit_summary(db, unit, units, progress_by_unit) for unit in units
+    ]
+
+
+@app.get(
+    "/courses/units/{unit_id}",
+    response_model=CourseUnitDetailResponse,
+    tags=["Курсы"],
+    summary="Полная структура курса с заданиями и историей",
+)
+def get_course_unit_detail(
+    unit_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    units = course_units_query(db)
+    unit = next((item for item in units if item.id == unit_id), None)
+    if unit is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Курс не найден."
+        )
+    progress_by_unit = user_unit_progress_map(db, user.id)
+    vocabulary = (
+        db.query(UnitVocabulary)
+        .filter(UnitVocabulary.unit_id == unit.id)
+        .order_by(UnitVocabulary.id)
+        .all()
+    )
+    exercises = (
+        db.query(UnitExercise)
+        .filter(UnitExercise.unit_id == unit.id)
+        .order_by(UnitExercise.id)
+        .all()
+    )
+    story_steps = (
+        db.query(UnitStoryStep)
+        .filter(UnitStoryStep.unit_id == unit.id)
+        .order_by(UnitStoryStep.step_order)
+        .all()
+    )
+
+    build_sentence = [
+        {
+            "id": item.id,
+            "prompt_ru": item.prompt_ru,
+            "tokens": item.tokens_json,
+            "distractors": item.distractors_json,
+            "hints": item.hints_json,
+            "correct_answer": item.correct_answer,
+        }
+        for item in exercises
+        if item.exercise_type == "build_sentence"
+    ]
+    fill_blanks = [
+        {
+            "id": item.id,
+            "prompt_ru": item.prompt_ru,
+            "target_ba": item.target_ba,
+            "tokens": item.tokens_json,
+            "distractors": item.distractors_json,
+            "hints": item.hints_json,
+            "correct_answer": item.correct_answer,
+        }
+        for item in exercises
+        if item.exercise_type == "fill_blank"
+    ]
+    match = next(
+        (item for item in exercises if item.exercise_type == "match_pairs"), None
+    )
+    match_pairs = None
+    if match is not None:
+        ru_options = list(match.correct_answer.values())
+        random.Random(unit.id * 2000).shuffle(ru_options)
+        match_pairs = {
+            "id": match.id,
+            "prompt_ru": match.prompt_ru,
+            "tokens": match.tokens_json,
+            "ru_options": ru_options,
+            "correct_answer": match.correct_answer,
+        }
+
+    return {
+        **course_unit_summary(db, unit, units, progress_by_unit),
+        "circle_1": {
+            "cards": vocabulary,
+            "quiz": generate_unit_quiz(unit.id, vocabulary),
+        },
+        "circle_2": {"build_sentence": build_sentence},
+        "circle_3": {"fill_blanks": fill_blanks, "match_pairs": match_pairs},
+        "boss_story": {
+            "steps": [
+                {
+                    "id": step.id,
+                    "step_order": step.step_order,
+                    "character_name": step.character_name,
+                    "scene_tag": step.scene_tag,
+                    "npc_text_ba": step.npc_text_ba,
+                    "npc_text_ru": step.npc_text_ru,
+                    "options": step.options_json,
+                }
+                for step in story_steps
+            ]
+        },
+    }
+
+
+def course_circle_completion_payload(
+    db: Session,
+    user: User,
+    unit: CourseUnit,
+    units: list[CourseUnit],
+    payload: CourseCircleComplete,
+    already_completed: bool,
+    awarded_xp: int,
+) -> dict:
+    progress_by_unit = user_unit_progress_map(db, user.id)
+    updated_progress = build_unit_progress_status(unit, units, progress_by_unit)
+    position = next(index for index, item in enumerate(units) if item.id == unit.id)
+    next_unit = units[position + 1] if position + 1 < len(units) else None
+    return {
+        "unit_id": unit.id,
+        "circle": payload.circle,
+        "score": payload.score,
+        "already_completed": already_completed,
+        "awarded_xp": awarded_xp,
+        "points": user.points,
+        "level": user.level,
+        "next_circle": updated_progress["current_circle"],
+        "next_unit_id": next_unit.id if next_unit else None,
+        "next_unit_unlocked": bool(
+            next_unit
+            and course_unit_unlocked(next_unit, units, progress_by_unit)
+        ),
+        "progress": updated_progress,
+    }
+
+
+@app.post(
+    "/courses/units/{unit_id}/complete",
+    response_model=CourseCircleCompleteResponse,
+    tags=["Курсы"],
+    summary="Завершить кружок, получить XP и открыть следующий этап",
+)
+def complete_course_circle(
+    unit_id: int,
+    payload: CourseCircleComplete,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    units = course_units_query(db)
+    unit = next((item for item in units if item.id == unit_id), None)
+    if unit is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Курс не найден."
+        )
+    progress_by_unit = user_unit_progress_map(db, user.id)
+    current_status = build_unit_progress_status(unit, units, progress_by_unit)
+    circle_status = current_status[payload.circle]
+    if not circle_status["unlocked"]:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Сначала завершите предыдущий кружок или курс.",
+        )
+    if circle_status["completed"]:
+        return course_circle_completion_payload(
+            db, user, unit, units, payload, True, 0
+        )
+
+    progress = progress_by_unit.get(unit.id)
+    if progress is None:
+        progress = UserUnitProgress(user_id=user.id, unit_id=unit.id)
+        db.add(progress)
+    field_name, base_xp = COURSE_CIRCLES[payload.circle]
+    setattr(progress, field_name, True)
+    awarded_xp = round(base_xp * payload.score / 100)
+    user.points += awarded_xp
+    user.level = user.points // 100 + 1
+    award_badges(db, user)
+    db.commit()
+    db.refresh(user)
+    db.refresh(progress)
+    return course_circle_completion_payload(
+        db, user, unit, units, payload, False, awarded_xp
     )
 
 

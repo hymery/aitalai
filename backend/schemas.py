@@ -183,3 +183,136 @@ class CourseProgressResponse(ORMModel):
     lesson_type: Literal["flashcards", "practice", "boss"]
     xp_awarded: int
     completed_at: datetime
+
+
+CourseCircle = Literal["circle_1", "circle_2", "circle_3", "boss_story"]
+QuizDirection = Literal["ba_to_ru", "ru_to_ba"]
+
+
+class CircleStatus(BaseModel):
+    unlocked: bool
+    completed: bool
+
+
+class UnitProgressStatus(BaseModel):
+    circle_1: CircleStatus
+    circle_2: CircleStatus
+    circle_3: CircleStatus
+    boss_story: CircleStatus
+    current_circle: str
+
+
+class CourseUnitSummary(BaseModel):
+    id: int
+    order_index: int
+    title: str
+    description: str
+    character_name: str
+    theme_slug: str
+    vocabulary_count: int
+    unlocked: bool
+    progress: UnitProgressStatus
+
+
+class VocabularyCardResponse(ORMModel):
+    id: int
+    ba_word: str
+    ru_word: str
+    transcription: str
+    example_ba: str
+    example_ru: str
+
+
+class QuizQuestionResponse(BaseModel):
+    id: str
+    direction: QuizDirection
+    prompt: str
+    options: list[str]
+    correct_answer: str
+
+
+class Circle1Response(BaseModel):
+    cards: list[VocabularyCardResponse]
+    quiz: list[QuizQuestionResponse]
+
+
+class BuildSentenceResponse(BaseModel):
+    id: int
+    prompt_ru: str
+    tokens: list[str]
+    distractors: list[str]
+    hints: dict[str, str]
+    correct_answer: str
+
+
+class Circle2Response(BaseModel):
+    build_sentence: list[BuildSentenceResponse]
+
+
+class FillBlankResponse(BaseModel):
+    id: int
+    prompt_ru: str
+    target_ba: str
+    tokens: list[str]
+    distractors: list[str]
+    hints: dict[str, str]
+    correct_answer: str
+
+
+class MatchPairsResponse(BaseModel):
+    id: int
+    prompt_ru: str
+    tokens: list[str]
+    ru_options: list[str]
+    correct_answer: dict[str, str]
+
+
+class Circle3Response(BaseModel):
+    fill_blanks: list[FillBlankResponse]
+    match_pairs: MatchPairsResponse | None
+
+
+class StoryOptionResponse(BaseModel):
+    text_ba: str
+    is_correct: bool
+    explanation_ru: str
+
+
+class StoryStepResponse(BaseModel):
+    id: int
+    step_order: int
+    character_name: str
+    scene_tag: str
+    npc_text_ba: str
+    npc_text_ru: str
+    options: list[StoryOptionResponse]
+
+
+class BossStoryResponse(BaseModel):
+    steps: list[StoryStepResponse]
+
+
+class CourseUnitDetailResponse(CourseUnitSummary):
+    circle_1: Circle1Response
+    circle_2: Circle2Response
+    circle_3: Circle3Response
+    boss_story: BossStoryResponse
+
+
+class CourseCircleComplete(BaseModel):
+    circle: CourseCircle
+    score: int = Field(ge=0, le=100)
+
+
+class CourseCircleCompleteResponse(BaseModel):
+    unit_id: int
+    circle: CourseCircle
+    score: int
+    already_completed: bool
+    awarded_xp: int
+    points: int
+    level: int
+    next_circle: str
+    next_unit_id: int | None
+    next_unit_unlocked: bool
+    progress: UnitProgressStatus

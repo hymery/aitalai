@@ -151,3 +151,108 @@ class CourseProgress(Base):
     completed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class CourseUnit(Base):
+    __tablename__ = "course_units"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    order_index: Mapped[int] = mapped_column(Integer, unique=True, nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    character_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    theme_slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+
+
+class UnitVocabulary(Base):
+    __tablename__ = "unit_vocabulary"
+    __table_args__ = (
+        UniqueConstraint("unit_id", "ba_word", name="uq_unit_vocabulary_word"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    unit_id: Mapped[int] = mapped_column(
+        ForeignKey("course_units.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    ba_word: Mapped[str] = mapped_column(String(255), nullable=False)
+    ru_word: Mapped[str] = mapped_column(String(255), nullable=False)
+    transcription: Mapped[str] = mapped_column(String(255), nullable=False)
+    example_ba: Mapped[str] = mapped_column(Text, nullable=False)
+    example_ru: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class UnitExercise(Base):
+    __tablename__ = "unit_exercises"
+    __table_args__ = (
+        CheckConstraint(
+            "circle_number IN (2, 3)", name="ck_unit_exercises_circle_number"
+        ),
+        CheckConstraint(
+            "exercise_type IN ('build_sentence', 'fill_blank', 'match_pairs')",
+            name="ck_unit_exercises_type",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    unit_id: Mapped[int] = mapped_column(
+        ForeignKey("course_units.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    circle_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    exercise_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    prompt_ru: Mapped[str] = mapped_column(Text, nullable=False)
+    target_ba: Mapped[str] = mapped_column(Text, nullable=False)
+    tokens_json: Mapped[list[Any]] = mapped_column(JSON, default=list, nullable=False)
+    distractors_json: Mapped[list[Any]] = mapped_column(
+        JSON, default=list, nullable=False
+    )
+    hints_json: Mapped[dict[str, Any]] = mapped_column(
+        JSON, default=dict, nullable=False
+    )
+    correct_answer: Mapped[Any] = mapped_column(JSON, nullable=False)
+
+
+class UnitStoryStep(Base):
+    __tablename__ = "unit_story_steps"
+    __table_args__ = (
+        UniqueConstraint("unit_id", "step_order", name="uq_unit_story_step_order"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    unit_id: Mapped[int] = mapped_column(
+        ForeignKey("course_units.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    step_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    character_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    scene_tag: Mapped[str] = mapped_column(String(100), nullable=False)
+    npc_text_ba: Mapped[str] = mapped_column(Text, nullable=False)
+    npc_text_ru: Mapped[str] = mapped_column(Text, nullable=False)
+    options_json: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON, default=list, nullable=False
+    )
+
+
+class UserUnitProgress(Base):
+    __tablename__ = "user_unit_progress"
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    unit_id: Mapped[int] = mapped_column(
+        ForeignKey("course_units.id", ondelete="CASCADE"), primary_key=True
+    )
+    circle_1_done: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+    circle_2_done: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+    circle_3_done: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+    boss_done: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
