@@ -228,7 +228,7 @@ async def _drain(process: asyncio.subprocess.Process) -> None:
 # --- Telegram ------------------------------------------------------------------
 
 def build_bot() -> Bot:
-    token = read_env("BOT_TOKEN")
+    token = read_env("TELEGRAM_BOT_TOKEN") or read_env("BOT_TOKEN")
     if not token:
         logger.error("В .env не найден BOT_TOKEN.")
         raise SystemExit(1)

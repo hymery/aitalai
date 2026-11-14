@@ -79,16 +79,31 @@ def main():
         accounts[email] = token
     print("OK: вход пяти seed-аккаунтов, JWT и /auth/me")
 
+    directory = request("GET", "/schools?q=" + urllib.parse.quote("Уфа 12") + "&city=" + urllib.parse.quote("Уфа"))
+    assert directory["total"] >= 1 and directory["items"][0]["city"] == "Уфа"
+    school_id = directory["items"][0]["id"]
     registered = request("POST", "/auth/register", body={
         "email": "e2e.student@example.com",
         "password": "1234",
         "full_name": "Сквозной Тест",
-        "school": SCHOOL,
+        "school_id": school_id,
+        "school": directory["items"][0]["name"],
         "class_name": "7А",
         "lang_pair": "ba-ru",
         "role": "student",
     }, expected=201)
+    assert registered["user"]["school_id"] == school_id
     student = registered["access_token"]
+    updated = request("PATCH", "/auth/me", token=student, body={
+        "school_id": "rb-municipal-001", "school": SCHOOL, "class_name": "8Б",
+    })
+    assert updated["school_id"] == "rb-municipal-001" and updated["class_name"] == "8Б"
+    restored = request("GET", "/auth/me", token=student)
+    assert restored["school"] == SCHOOL and restored["school_id"] == "rb-municipal-001"
+    request("PATCH", "/auth/me", token=student, body={"school_id": "unknown"}, expected=400)
+    top = request("GET", "/ratings/top?period=all")
+    assert next(item for item in top if item["user_id"] == restored["id"])["school_id"] == "rb-municipal-001"
+    print("OK: справочник школ, серверный PATCH профиля и school_id в рейтинге")
     request("POST", "/auth/register", body={
         "email": "e2e.student@example.com",
         "password": "1234",
@@ -145,6 +160,14 @@ def main():
     assert corrected["points"] == before + 25
     assert isinstance(corrected["badges"], list) and corrected["consensus_status"]
     print("OK: ежедневные задания, answer.points_earned, +10/+15 очков и points")
+
+    my_answers = request("GET", "/answers/me?format=json", token=student)
+    assert len(my_answers) == 2
+    assert any(row["text_ba"] == daily2["text_ba"] and row["translation"] == corrected_text for row in my_answers)
+    my_csv, my_csv_type = request("GET", "/answers/me?format=csv", token=student, raw=True)
+    assert "text/csv" in my_csv_type and "text_ba" in my_csv and corrected_text in my_csv
+    request("GET", "/answers/me?format=json", expected=401)
+    print("OK: авторизованный экспорт собственных ответов JSON и CSV")
 
     found = request("GET", f"/fragments/search?{urllib.parse.urlencode({'q': daily['text_ba'], 'limit': 20})}", token=student)
     assert any(row["fragment_id"] == daily["fragment_id"] for row in found)

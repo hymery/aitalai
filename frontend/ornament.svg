@@ -38,4 +38,12 @@
   <symbol id="badge-frame" viewBox="0 0 80 80">
     <path d="M40 1 51 12H64V25L79 40 64 55V68H51L40 79 29 68H16V55L1 40 16 25V12H29Z M40 13 50 23H57V30L67 40 57 50V57H50L40 67 30 57H23V50L13 40 23 30V23H30Z M40 14 43 17 40 20 37 17Z M40 60 43 63 40 66 37 63Z M17 40 20 37 23 40 20 43Z M57 40 60 37 63 40 60 43Z" fill="currentColor" fill-rule="evenodd"/>
   </symbol>
+  <!-- 6. Зеркально симметричный фоновый паттерн 64×64 -->
+  <pattern id="app-pattern" width="64" height="64" patternUnits="userSpaceOnUse">
+    <g fill="none" stroke="#EAF4FC" stroke-width="2" stroke-linejoin="round">
+      <path d="M32 10 54 32 32 54 10 32Z"/>
+      <path d="M32 20 44 32 32 44 20 32Z"/>
+      <path d="M10 32 2 24M10 32 2 40M54 32l8-8M54 32l8 8"/>
+    </g>
+  </pattern>
 </svg>

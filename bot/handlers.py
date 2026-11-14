@@ -219,11 +219,77 @@ async def cmd_help(message: Message) -> None:
     await message.answer(
         "ℹ️ <b>Помощь</b>\n\n"
         "/start — главное меню или регистрация\n"
+        "/task — фрагмент дня\n"
+        "/progress — очки, уровень и серия\n"
+        "/notifications — включить или выключить уведомления\n"
         "/cancel — отменить текущее действие\n"
         "/help — эта справка\n\n"
         "🚀 <b>Открыть языковую школу</b> — мини-приложение с заданиями, "
-        "рейтингом и профилем.\n"
-        "🔔 Кнопка в меню включает и выключает ежедневные напоминания."
+        "рейтингом и профилем."
+    )
+
+
+@router.message(Command("task"))
+async def cmd_task(message: Message, state: FSMContext, api: ApiClient, config: Config) -> None:
+    data = await state.get_data()
+    token = data.get("token")
+    if not token:
+        await message.answer("Сначала зарегистрируйтесь командой /start.")
+        return
+    try:
+        task = await api.get_daily_task(str(token))
+    except ApiError as exc:
+        await message.answer(esc(exc.user_message))
+        return
+    await message.answer(
+        "📖 <b>Фрагмент дня ждёт проверки!</b>\n\n"
+        f"<b>{esc(task.get('text_ba'))}</b>\n"
+        f"Предложенный перевод: {esc(task.get('translation'))}\n\n"
+        "Откройте мини-приложение, чтобы подтвердить или исправить перевод.",
+        reply_markup=menu_markup(config, data),
+    )
+
+
+@router.message(Command("progress"))
+async def cmd_progress(message: Message, state: FSMContext, api: ApiClient, config: Config) -> None:
+    data = await state.get_data()
+    token = data.get("token")
+    if not token:
+        await message.answer("Сначала зарегистрируйтесь командой /start.")
+        return
+    try:
+        profile = await api.get_profile(str(token))
+    except ApiError as exc:
+        await message.answer(esc(exc.user_message))
+        return
+    await message.answer(
+        f"📊 <b>{esc(profile.get('full_name') or 'Ваш прогресс')}</b>\n\n"
+        f"Очки: <b>{int(profile.get('points') or 0)}</b>\n"
+        f"Уровень: <b>{int(profile.get('level') or 1)}</b>\n"
+        f"Серия: <b>{int(profile.get('streak_days') or 0)} дн.</b>",
+        reply_markup=menu_markup(config, data),
+    )
+
+
+@router.message(Command("notifications"))
+async def cmd_notifications(
+    message: Message,
+    state: FSMContext,
+    config: Config,
+    store: UserStore,
+) -> None:
+    data = await state.get_data()
+    telegram_id = message.from_user.id if message.from_user else message.chat.id
+    if not data.get("registered"):
+        await message.answer("Сначала зарегистрируйтесь командой /start.")
+        return
+    enabled = not bool(data.get("reminders_enabled", True))
+    await state.update_data(reminders_enabled=enabled)
+    store.set_reminders(telegram_id, enabled)
+    data["reminders_enabled"] = enabled
+    await message.answer(
+        "🔔 Уведомления включены." if enabled else "🔕 Уведомления выключены.",
+        reply_markup=menu_markup(config, data),
     )
 
 
@@ -417,6 +483,7 @@ async def complete_registration(
         school=school,
         grade=grade,
         email=email,
+        token=token,
         reminders_enabled=reminders_enabled,
         blocked=False,
     )

@@ -19,6 +19,7 @@ class UserRegister(BaseModel):
     full_name: str = Field(min_length=1, max_length=255)
     role: str = Field(default="student")
     telegram_id: int | None = None
+    school_id: str | None = Field(default=None, max_length=64)
     school: str | None = Field(default=None, max_length=255)
     class_name: str | None = Field(default=None, max_length=50)
     lang_pair: str = Field(default="ba-ru", min_length=1, max_length=10)
@@ -28,9 +29,36 @@ class TelegramAuth(BaseModel):
     telegram_id: int
     full_name: str
     role: str = "student"
+    school_id: str | None = None
     school: str | None = None
     class_name: str | None = None
     lang_pair: str = "ba-ru"
+
+
+class UserProfileUpdate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    school_id: str | None = Field(default=None, max_length=64)
+    school: str | None = Field(default=None, max_length=255)
+    class_name: str | None = Field(default=None, max_length=50)
+    lang_pair: Literal["ba-ru"] | None = None
+
+
+class SchoolResponse(BaseModel):
+    id: str
+    name: str
+    short_name: str
+    city: str
+    district: str
+    type: str
+
+
+class SchoolDirectoryResponse(BaseModel):
+    items: list[SchoolResponse]
+    total: int = Field(ge=0)
+    offset: int = Field(ge=0)
+    limit: int = Field(ge=1)
+    metadata: dict
 
 
 class UserLogin(BaseModel):
@@ -51,6 +79,7 @@ class UserResponse(ORMModel):
     email: EmailStr | None
     full_name: str
     role: str
+    school_id: str | None
     school: str | None
     class_name: str | None
     lang_pair: str
@@ -157,6 +186,7 @@ class RatingEntry(BaseModel):
     rank: int = Field(ge=1)
     user_id: int
     full_name: str
+    school_id: str | None
     school: str | None
     class_name: str | None
     points: int = Field(ge=0)

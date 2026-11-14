@@ -220,3 +220,38 @@ class ApiClient:
             await self._mock.save_state(payload)
             return
         await self._request("POST", "/bot/state", json_body=payload)
+
+    async def get_profile(self, token: str) -> dict[str, Any]:
+        if self._mock is not None:
+            return {"points": 0, "level": 1, "streak_days": 0, "full_name": "Ученик"}
+        data = await self._request("GET", "/auth/me", token=token)
+        return data if isinstance(data, dict) else {}
+
+    async def get_daily_task(self, token: str) -> dict[str, Any]:
+        if self._mock is not None:
+            return {
+                "text_ba": "Сәләм",
+                "translation": "Здравствуйте",
+                "lang_pair": "ba-ru",
+                "source": "Демонстрация",
+            }
+        data = await self._request("GET", "/tasks/daily", token=token)
+        return data if isinstance(data, dict) else {}
+
+    async def get_my_answers(self, token: str) -> list[dict[str, Any]]:
+        if self._mock is not None:
+            return []
+        data = await self._request(
+            "GET", "/answers/me", params={"format": "json"}, token=token
+        )
+        return data if isinstance(data, list) else []
+
+    async def get_rating(self, category: str) -> list[dict[str, Any]]:
+        if category not in {"schools", "classes"}:
+            raise ValueError("Для уведомлений доступны только рейтинги schools/classes")
+        if self._mock is not None:
+            return []
+        data = await self._request(
+            "GET", f"/ratings/{category}", params={"period": "week"}
+        )
+        return data if isinstance(data, list) else []

@@ -90,8 +90,20 @@ class CoursesApiTestCase(unittest.TestCase):
         TEST_DB_PATH.unlink(missing_ok=True)
 
     def test_routes_and_all_three_course_structures(self):
-        routes = {route.path for route in app.routes}
+        routes = set()
+
+        def collect_routes(router):
+            for route in router.routes:
+                if path := getattr(route, "path", None):
+                    routes.add(path)
+                if nested_router := getattr(route, "original_router", None):
+                    collect_routes(nested_router)
+
+        collect_routes(app)
         expected_routes = {
+            "/schools",
+            "/answers/me",
+            "/api/tts",
             "/courses/units",
             "/courses/units/{unit_id}",
             "/courses/units/{unit_id}/complete",

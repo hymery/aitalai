@@ -13,9 +13,12 @@ start "AITALAI Frontend" /D "%ROOT%frontend" cmd.exe /k "npm install --no-audit 
 
 rem Bot: start only when bot/.env contains a plausible BOT_TOKEN.
 set "BOT_TOKEN_VALUE="
+set "MAX_BOT_TOKEN_VALUE="
 if exist "%ROOT%bot\.env" (
     for /f "usebackq eol=# tokens=1,2 delims==" %%A in ("%ROOT%bot\.env") do (
         if /I "%%A"=="BOT_TOKEN" set "BOT_TOKEN_VALUE=%%B"
+        if /I "%%A"=="TELEGRAM_BOT_TOKEN" set "BOT_TOKEN_VALUE=%%B"
+        if /I "%%A"=="MAX_BOT_TOKEN" set "MAX_BOT_TOKEN_VALUE=%%B"
     )
 )
 
@@ -28,7 +31,16 @@ if defined BOT_TOKEN_VALUE (
     )
 )
 
-if "%BOT_STARTED%"=="0" echo [AITALAI] Bot skipped: set BOT_TOKEN in bot\.env first.
+if "%BOT_STARTED%"=="0" echo [AITALAI] Telegram bot skipped: set TELEGRAM_BOT_TOKEN in bot\.env first.
+
+set "MAX_BOT_STARTED=0"
+if defined MAX_BOT_TOKEN_VALUE (
+    if /I not "%MAX_BOT_TOKEN_VALUE%"=="replace_with_real_max_token" (
+        start "AITALAI MAX Bot" /D "%ROOT%bot" cmd.exe /k "call .venv\Scripts\activate.bat && python max_bot.py"
+        set "MAX_BOT_STARTED=1"
+    )
+)
+if "%MAX_BOT_STARTED%"=="0" echo [AITALAI] MAX bot skipped: set MAX_BOT_TOKEN in bot\.env first.
 
 rem Wait four seconds, then open the application and Swagger in the default browser.
 %SystemRoot%\System32\PING.EXE -n 5 127.0.0.1 >nul

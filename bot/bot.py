@@ -24,7 +24,7 @@ from api import ApiClient, ApiError
 from config import BASE_DIR, Config, load_config
 from handlers import UserStates, router
 from keyboards import is_local_url, is_webapp_url
-from reminders import reminder_loop
+from reminders import activity_loop, reminder_loop
 from storage import UserStore
 from webapp_server import start_webapp_server
 
@@ -216,6 +216,7 @@ async def run_bot(config: Config) -> None:
     dispatcher.include_router(router)
 
     reminder_task: asyncio.Task | None = None
+    activity_task: asyncio.Task | None = None
     webapp_runner = None
     try:
         try:
@@ -232,6 +233,9 @@ async def run_bot(config: Config) -> None:
         await bot.set_my_commands(
             [
                 BotCommand(command="start", description="Главное меню"),
+                BotCommand(command="task", description="Фрагмент дня"),
+                BotCommand(command="progress", description="Мой прогресс"),
+                BotCommand(command="notifications", description="Уведомления"),
                 BotCommand(command="cancel", description="Отменить действие"),
                 BotCommand(command="help", description="Список команд"),
             ]
@@ -261,6 +265,9 @@ async def run_bot(config: Config) -> None:
         reminder_task = asyncio.create_task(
             reminder_loop(bot, config, store)
         )
+        activity_task = asyncio.create_task(
+            activity_loop(bot, config, store, api)
+        )
 
         await dispatcher.start_polling(
             bot,
@@ -269,10 +276,11 @@ async def run_bot(config: Config) -> None:
             store=store,
         )
     finally:
-        if reminder_task is not None:
-            reminder_task.cancel()
-            with suppress(asyncio.CancelledError):
-                await reminder_task
+        for task in (reminder_task, activity_task):
+            if task is not None:
+                task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await task
         if webapp_runner is not None:
             await webapp_runner.cleanup()
             logger.info("WebApp сервер остановлен")

@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import random
+import re
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -25,12 +26,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
-from sqlalchemy import and_, case, func
+from sqlalchemy import and_, case, func, inspect, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from database import Base, engine, get_db
+from schools import find_school, get_school, search_schools
 from models import (
     Answer,
     Badge,
@@ -61,12 +63,15 @@ from schemas import (
     FragmentProposal,
     FragmentProposalResponse,
     ModerationResolve,
+    SchoolDirectoryResponse,
     TelegramAuth,
     TranslationResponse,
     UserLogin,
+    UserProfileUpdate,
     UserRegister,
     UserResponse,
 )
+from tts import preload_tts, router as tts_router, tts_enabled
 
 
 LOG_FILE = Path(__file__).resolve().with_name("app.log")
@@ -93,9 +98,35 @@ bearer_scheme = HTTPBearer(
 )
 
 
+def ensure_schema():
+    """Небольшая обратносовместимая миграция для существующих установок."""
+    Base.metadata.create_all(bind=engine)
+    with engine.begin() as connection:
+        columns = {column["name"] for column in inspect(connection).get_columns("users")}
+        if "school_id" not in columns:
+            connection.execute(text("ALTER TABLE users ADD COLUMN school_id VARCHAR(64)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_users_school_id ON users (school_id)"))
+    with Session(bind=engine) as db:
+        changed = False
+        for user in db.query(User).filter(User.school_id.is_(None), User.school.is_not(None)):
+            school = find_school(user.school)
+            if school:
+                user.school_id = school["id"]
+                user.school = school["name"]
+                changed = True
+        if changed:
+            db.commit()
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    Base.metadata.create_all(bind=engine)
+    ensure_schema()
+    if tts_enabled():
+        try:
+            preload_tts()
+            logger.info("Silero TTS: башкирский голос bak_alfia загружен")
+        except Exception:
+            logger.exception("Silero TTS не загружен; endpoint вернёт 503 до восстановления модели")
     logger.info("Приложение запущено, таблицы базы данных проверены")
     yield
     logger.info("Приложение остановлено")
@@ -119,9 +150,11 @@ app = FastAPI(
         {"name": "Учитель", "description": "Сводные отчёты по классам."},
         {"name": "Экспорт", "description": "Выгрузка подтверждённых переводов."},
         {"name": "Бот", "description": "Сохранение состояния Telegram-бота."},
+        {"name": "Озвучка", "description": "Локальный башкирский Silero TTS."},
         {"name": "Сервис", "description": "Проверка доступности приложения."},
     ],
 )
+app.include_router(tts_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -316,6 +349,37 @@ def shuffled_translation(text: str) -> str:
     return " ".join(shuffled)
 
 
+def resolve_school(school_id: str | None, school_name: str | None):
+    record = get_school(school_id) if school_id else None
+    if school_id and record is None:
+        raise HTTPException(status_code=400, detail="Школа не найдена в справочнике РБ.")
+    if record is None and school_name:
+        record = find_school(school_name)
+        if record is None:
+            raise HTTPException(status_code=400, detail="Выберите школу из справочника РБ.")
+    if record and school_name:
+        by_name = find_school(school_name)
+        if by_name is None or by_name["id"] != record["id"]:
+            raise HTTPException(status_code=400, detail="Идентификатор и название школы не совпадают.")
+    return record
+
+
+@app.get(
+    "/schools",
+    response_model=SchoolDirectoryResponse,
+    tags=["Сервис"],
+    summary="Поиск по справочнику школ Башкортостана",
+)
+def schools_directory(
+    q: str = Query("", max_length=120),
+    city: str = Query("", max_length=120),
+    district: str = Query("", max_length=120),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+):
+    return search_schools(q=q.strip(), city=city.strip(), district=district.strip(), limit=limit, offset=offset)
+
+
 @app.post(
     "/auth/register",
     response_model=AuthResponse,
@@ -344,13 +408,15 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Роль должна быть student, teacher или expert.",
         )
+    school = resolve_school(payload.school_id, payload.school)
     user = User(
         email=email,
         password_hash=hash_password(payload.password),
         full_name=payload.full_name,
         role=role,
         telegram_id=payload.telegram_id,
-        school=payload.school,
+        school_id=school["id"] if school else None,
+        school=school["name"] if school else None,
         class_name=payload.class_name,
         lang_pair=payload.lang_pair,
         badges=[],
@@ -401,13 +467,15 @@ def telegram_auth(payload: TelegramAuth, db: Session = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Роль должна быть student, teacher или expert.",
         )
+    school = resolve_school(payload.school_id, payload.school)
     user = db.query(User).filter(User.telegram_id == payload.telegram_id).first()
     if user is None:
         user = User(
             telegram_id=payload.telegram_id,
             full_name=payload.full_name,
             role=role,
-            school=payload.school,
+            school_id=school["id"] if school else None,
+            school=school["name"] if school else None,
             class_name=payload.class_name,
             lang_pair=payload.lang_pair,
             badges=[],
@@ -415,8 +483,11 @@ def telegram_auth(payload: TelegramAuth, db: Session = Depends(get_db)):
         db.add(user)
     else:
         user.full_name = payload.full_name
-        user.school = payload.school
-        user.class_name = payload.class_name
+        if school:
+            user.school_id = school["id"]
+            user.school = school["name"]
+        if payload.class_name is not None:
+            user.class_name = payload.class_name
         user.lang_pair = payload.lang_pair
     try:
         db.commit()
@@ -438,6 +509,36 @@ def telegram_auth(payload: TelegramAuth, db: Session = Depends(get_db)):
     response_description="Данные владельца Bearer-токена.",
 )
 def me(user: User = Depends(get_current_user)):
+    return user
+
+
+@app.patch(
+    "/auth/me",
+    response_model=UserResponse,
+    tags=["Авторизация"],
+    summary="Обновить школу, класс и языковую пару",
+)
+def update_me(
+    payload: UserProfileUpdate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    values = payload.model_dump(exclude_unset=True)
+    if "school_id" in values or "school" in values:
+        school = resolve_school(payload.school_id, payload.school)
+        if school is None:
+            raise HTTPException(status_code=400, detail="Выберите школу из справочника РБ.")
+        user.school_id = school["id"]
+        user.school = school["name"]
+    if "class_name" in values:
+        class_name = (payload.class_name or "").strip().upper().replace(" ", "")
+        if not class_name or not re.fullmatch(r"(?:[1-9]|10|11)[А-Я]", class_name):
+            raise HTTPException(status_code=400, detail="Укажите класс в формате 7А (с 1 по 11).")
+        user.class_name = class_name
+    if payload.lang_pair is not None:
+        user.lang_pair = payload.lang_pair
+    db.commit()
+    db.refresh(user)
     return user
 
 
@@ -769,6 +870,7 @@ def rating_top(period: Period = Query("all"), db: Session = Depends(get_db)):
             "rank": rank,
             "user_id": user.id,
             "full_name": user.full_name,
+            "school_id": user.school_id,
             "school": user.school,
             "class_name": user.class_name,
             "points": points,
@@ -787,36 +889,21 @@ def rating_top(period: Period = Query("all"), db: Session = Depends(get_db)):
 )
 def rating_schools(period: Period = Query("all"), db: Session = Depends(get_db)):
     filters = (User.role == "student", User.school.is_not(None), User.school != "")
-    if period == "all":
-        rows = (
-            db.query(
-                User.school,
-                func.coalesce(func.sum(User.points), 0).label("points"),
-                func.count(User.id).label("students"),
-            )
-            .filter(*filters)
-            .group_by(User.school)
-            .order_by(func.coalesce(func.sum(User.points), 0).desc())
-            .all()
-        )
-    else:
-        cutoff = period_cutoff(period)
-        join_conditions = [Answer.user_id == User.id, Answer.created_at >= cutoff]
-        rows = (
-            db.query(
-                User.school,
-                func.coalesce(func.sum(Answer.points_earned), 0).label("points"),
-                func.count(func.distinct(User.id)).label("students"),
-            )
-            .outerjoin(Answer, and_(*join_conditions))
-            .filter(*filters)
-            .group_by(User.school)
-            .order_by(func.coalesce(func.sum(Answer.points_earned), 0).desc())
-            .all()
-        )
+    points = User.points if period == "all" else Answer.points_earned
+    query = db.query(
+        User.school_id,
+        User.school,
+        func.coalesce(func.sum(points), 0).label("points"),
+        func.count(func.distinct(User.id)).label("students"),
+    )
+    if period != "all":
+        query = query.outerjoin(Answer, and_(Answer.user_id == User.id, Answer.created_at >= period_cutoff(period)))
+    rows = query.filter(*filters).group_by(User.school_id, User.school).order_by(
+        func.coalesce(func.sum(points), 0).desc(), User.school
+    ).all()
     return [
-        {"rank": rank, "school": school, "points": points, "students": students}
-        for rank, (school, points, students) in enumerate(rows, start=1)
+        {"rank": rank, "school_id": school_id, "school": school, "points": points, "students": students}
+        for rank, (school_id, school, points, students) in enumerate(rows, start=1)
     ]
 
 
@@ -826,49 +913,23 @@ def rating_schools(period: Period = Query("all"), db: Session = Depends(get_db))
     summary="Рейтинг классов по очкам",
 )
 def rating_classes(period: Period = Query("all"), db: Session = Depends(get_db)):
-    filters = (
-        User.role == "student",
-        User.school.is_not(None),
-        User.class_name.is_not(None),
+    filters = (User.role == "student", User.school.is_not(None), User.class_name.is_not(None))
+    points = User.points if period == "all" else Answer.points_earned
+    query = db.query(
+        User.school_id,
+        User.school,
+        User.class_name,
+        func.coalesce(func.sum(points), 0).label("points"),
+        func.count(func.distinct(User.id)).label("students"),
     )
-    if period == "all":
-        rows = (
-            db.query(
-                User.school,
-                User.class_name,
-                func.coalesce(func.sum(User.points), 0).label("points"),
-                func.count(User.id).label("students"),
-            )
-            .filter(*filters)
-            .group_by(User.school, User.class_name)
-            .order_by(func.coalesce(func.sum(User.points), 0).desc())
-            .all()
-        )
-    else:
-        cutoff = period_cutoff(period)
-        join_conditions = [Answer.user_id == User.id, Answer.created_at >= cutoff]
-        rows = (
-            db.query(
-                User.school,
-                User.class_name,
-                func.coalesce(func.sum(Answer.points_earned), 0).label("points"),
-                func.count(func.distinct(User.id)).label("students"),
-            )
-            .outerjoin(Answer, and_(*join_conditions))
-            .filter(*filters)
-            .group_by(User.school, User.class_name)
-            .order_by(func.coalesce(func.sum(Answer.points_earned), 0).desc())
-            .all()
-        )
+    if period != "all":
+        query = query.outerjoin(Answer, and_(Answer.user_id == User.id, Answer.created_at >= period_cutoff(period)))
+    rows = query.filter(*filters).group_by(User.school_id, User.school, User.class_name).order_by(
+        func.coalesce(func.sum(points), 0).desc(), User.school, User.class_name
+    ).all()
     return [
-        {
-            "rank": rank,
-            "school": school,
-            "class_name": class_name,
-            "points": points,
-            "students": students,
-        }
-        for rank, (school, class_name, points, students) in enumerate(rows, start=1)
+        {"rank": rank, "school_id": school_id, "school": school, "class_name": class_name, "points": points, "students": students}
+        for rank, (school_id, school, class_name, points, students) in enumerate(rows, start=1)
     ]
 
 
@@ -903,6 +964,7 @@ def rating_accuracy(period: Period = Query("all"), db: Session = Depends(get_db)
         {
             "user_id": user.id,
             "full_name": user.full_name,
+            "school_id": user.school_id,
             "school": user.school,
             "class_name": user.class_name,
             "accuracy": round(correct / total * 100, 2),
@@ -930,6 +992,7 @@ def rating_vocabulary(period: Period = Query("all"), db: Session = Depends(get_d
             users[user.id] = {
                 "user_id": user.id,
                 "full_name": user.full_name,
+                "school_id": user.school_id,
                 "school": user.school,
                 "class_name": user.class_name,
                 "translations": set(),
@@ -969,6 +1032,7 @@ def rating_corrections(period: Period = Query("all"), db: Session = Depends(get_
             "rank": rank,
             "user_id": user.id,
             "full_name": user.full_name,
+            "school_id": user.school_id,
             "school": user.school,
             "class_name": user.class_name,
             "corrections": corrections,
@@ -1025,6 +1089,58 @@ def class_report(
         "students": report,
         "generated_at": datetime.now(timezone.utc),
     }
+
+
+@app.get(
+    "/answers/me",
+    tags=["Экспорт"],
+    summary="Экспортировать собственные ответы",
+    response_description="Ответы текущего пользователя с башкирскими фрагментами в JSON или CSV.",
+)
+def export_my_answers(
+    format: Literal["json", "csv"] = Query("json"),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    rows = (
+        db.query(Answer, Fragment, Translation)
+        .join(Fragment, Answer.fragment_id == Fragment.id)
+        .join(Translation, Answer.translation_id == Translation.id)
+        .filter(Answer.user_id == user.id)
+        .order_by(Answer.created_at.desc(), Answer.id.desc())
+        .all()
+    )
+    data = [
+        {
+            "answer_id": answer.id,
+            "fragment_id": fragment.id,
+            "text_ba": fragment.text_ba,
+            "lang_pair": answer_translation.lang_pair,
+            "translation": answer.translation_text,
+            "is_correct": answer.is_correct,
+            "points_earned": answer.points_earned,
+            "source": fragment.source,
+            "translation_status": answer_translation.status,
+            "created_at": answer.created_at.isoformat(),
+        }
+        for answer, fragment, answer_translation in rows
+    ]
+    if format == "json":
+        return data
+    output = io.StringIO()
+    fieldnames = list(data[0]) if data else [
+        "answer_id", "fragment_id", "text_ba", "lang_pair", "translation",
+        "is_correct", "points_earned", "source", "translation_status", "created_at",
+    ]
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    writer.writeheader()
+    for item in data:
+        writer.writerow({**item, "source": json.dumps(item["source"], ensure_ascii=False)})
+    return Response(
+        content="\ufeff" + output.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="my_answers.csv"'},
+    )
 
 
 @app.get(

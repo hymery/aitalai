@@ -32,6 +32,7 @@ class User(Base):
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(50), default="student", nullable=False)
+    school_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     school: Mapped[str | None] = mapped_column(String(255), nullable=True)
     class_name: Mapped[str | None] = mapped_column(String(50), nullable=True)
     lang_pair: Mapped[str] = mapped_column(String(10), default="ba-ru", nullable=False)

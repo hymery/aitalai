@@ -53,14 +53,17 @@ export function mascotFallback() {
 export function characterStage(id, line = "", options = {}) {
   const character = CHARACTERS[id] || CHARACTERS.boy;
   const state = options.state || "idle";
-  const stacked = options.stacked || String(line).length > 48;
-  const classes = ["character-stage", stacked ? "character-stage--stack" : "", options.className || ""].filter(Boolean).join(" ");
-  const speechClasses = ["speech", stacked ? "speech--up" : "", options.right ? "speech--right" : ""].filter(Boolean).join(" ");
+  const stacked = options.stacked || (options.lang === "ba" && line.length > 12);
+  const classes = ["stage", "character-stage", stacked ? "stage--stacked-speech" : "", options.className || ""].filter(Boolean).join(" ");
+  const speechClasses = ["cloud", "speech", options.lang === "ba" ? "cloud--ba" : "", options.right ? "speech--right" : ""].filter(Boolean).join(" ");
+  const facing = options.facing || character.facing || "right";
   const tts = options.tts ? `<button class="btn btn-ghost btn-icon speech__audio" type="button" data-character-tts="${esc(options.tts)}" aria-label="Прослушать фразу"><svg class="icon" aria-hidden="true"><use href="#i-volume"></use></svg></button>` : "";
-  return `<div class="${classes}" data-character-stage>
-    <div class="character${options.static ? " character--static" : ""}" data-char="${esc(id)}" data-state="${esc(state)}" aria-hidden="true">
-      <img class="character__img" src="${spriteUrl(id, state)}" width="512" height="512" alt="" decoding="async" draggable="false">
-      <svg class="character__spark" aria-hidden="true"><use href="#i-spark"></use></svg><svg class="character__spark" aria-hidden="true"><use href="#i-spark"></use></svg><svg class="character__spark" aria-hidden="true"><use href="#i-spark"></use></svg><svg class="character__spark" aria-hidden="true"><use href="#i-spark"></use></svg>
+  return `<div class="${classes}" data-character-stage data-emotion="${esc(state)}">
+    <div class="mascot-crop" data-facing="${esc(facing)}">
+      <div class="character stage__mascot${options.static ? " character--static" : ""}" data-char="${esc(character === CHARACTERS[id] ? id : "boy")}" data-state="${esc(state)}" data-emotion="${esc(state)}" aria-hidden="true">
+        <img class="character__img" src="${spriteUrl(id, state)}" width="512" height="512" alt="" decoding="async" draggable="false">
+        <svg class="character__spark" aria-hidden="true"><use href="#i-spark"></use></svg><svg class="character__spark" aria-hidden="true"><use href="#i-spark"></use></svg><svg class="character__spark" aria-hidden="true"><use href="#i-spark"></use></svg>
+      </div>
     </div>
     <div class="${speechClasses}">${tts}<span class="speech__text" ${options.lang === "ba" ? 'lang="ba"' : ""}>${esc(line)}</span></div>
   </div>`;
@@ -75,7 +78,9 @@ export function setState(stageEl, state, line) {
   hero.removeAttribute("data-state");
   void hero.offsetWidth;
   hero.dataset.state = state;
-  if (line !== undefined) stageEl.querySelector(".speech__text").textContent = line;
+  hero.dataset.emotion = state;
+  stageEl.dataset.emotion = state;
+  if (line !== undefined && stageEl.querySelector(".speech__text")) stageEl.querySelector(".speech__text").textContent = line;
 }
 
 export function reactToAnswer(stageEl, ok, idleLine = "") {

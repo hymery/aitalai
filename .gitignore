@@ -18,7 +18,11 @@ dist/
 # Локальные данные бота и проверок
 users.json
 users.json.tmp
+max_users.json
+max_users.tmp
 test-results/
+backend/.cache/
+backend/tts_cache/
 
 # Системные файлы
 .DS_Store

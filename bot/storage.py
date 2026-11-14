@@ -111,6 +111,17 @@ class UserStore:
                 and user.get("last_reminder") != today
             ]
 
+    def notification_recipients(self) -> list[dict[str, Any]]:
+        """Подписанные пользователи с сохранённым токеном доступа."""
+        with self._lock:
+            return [
+                dict(user)
+                for user in self._users.values()
+                if user.get("reminders_enabled", True)
+                and not user.get("blocked", False)
+                and bool(user.get("token"))
+            ]
+
     def count(self) -> int:
         with self._lock:
             return len(self._users)

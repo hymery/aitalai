@@ -120,6 +120,7 @@ function mapBossStages(unit, detail) {
     mechanic: "chat_choice",
     story_context: step.npc_text_ru,
     npc_speech_ba: step.npc_text_ba,
+    npc_speech_ru: step.npc_text_ru,
     speaker: step.character_name,
     task_prompt: "Выбери подходящий ответ:",
     options: step.options.map((option) => ({

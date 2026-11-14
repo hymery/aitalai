@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+  <g fill="none" stroke="#E4EFF3" stroke-width="1.6" stroke-linejoin="round">
+    <path d="M48 5 63 20 48 35 33 20Z"/>
+    <path d="M48 12 56 20 48 28 40 20Z"/>
+    <path d="M0 70 12 58 24 70 12 82Z M96 70 84 58 72 70 84 82Z"/>
+    <path d="M0 70h24M72 70h24" stroke-linecap="round"/>
+  </g>
+  <g fill="#EAF3F0" transform="translate(48 64)">
+    <path id="petal" d="M0-4 4-12 0-18-4-12Z"/>
+    <use href="#petal" transform="rotate(45)"/>
+    <use href="#petal" transform="rotate(90)"/>
+    <use href="#petal" transform="rotate(135)"/>
+    <use href="#petal" transform="rotate(180)"/>
+    <use href="#petal" transform="rotate(225)"/>
+    <use href="#petal" transform="rotate(270)"/>
+    <use href="#petal" transform="rotate(315)"/>
+    <circle r="3"/>
+  </g>
+</svg>

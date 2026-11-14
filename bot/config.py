@@ -63,7 +63,7 @@ def live_webapp_url(config: Config) -> str | None:
 
 
 def load_config() -> Config:
-    token = (os.getenv("BOT_TOKEN") or "").strip()
+    token = (os.getenv("TELEGRAM_BOT_TOKEN") or os.getenv("BOT_TOKEN") or "").strip()
     if not token:
         raise RuntimeError(
             "Не задан BOT_TOKEN. Скопируйте .env.example в .env "

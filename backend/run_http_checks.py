@@ -6,6 +6,7 @@ from contextlib import contextmanager
 import os
 from pathlib import Path
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
@@ -38,12 +39,16 @@ def main() -> None:
         log_path = Path(temp_dir) / "uvicorn.log"
         env = os.environ.copy()
         env["DATABASE_URL"] = f"sqlite:///{database.as_posix()}"
-        env["AITALAI_TEST_URL"] = "http://127.0.0.1:8000"
+        env["TTS_ENABLED"] = "0"
+        with socket.socket() as sock:
+            sock.bind(("127.0.0.1", 0))
+            port = sock.getsockname()[1]
+        env["AITALAI_TEST_URL"] = f"http://127.0.0.1:{port}"
         for script in ("seed.py", "build_courses.py"):
             subprocess.run([sys.executable, script], cwd=BASE_DIR, env=env, check=True)
         with log_path.open("w", encoding="utf-8") as log:
             server = subprocess.Popen(
-                [sys.executable, "-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8000"],
+                [sys.executable, "-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", str(port)],
                 cwd=BASE_DIR,
                 env=env,
                 stdout=log,
