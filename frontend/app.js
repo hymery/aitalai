@@ -12,6 +12,7 @@ import { lessonCharacter, PLAYER_CHAR, UNIT_CAST } from "./cast.js";
 import { AVATAR_CHARACTERS, AVATAR_COLORS, AVATAR_UNLOCK, AWARDS } from "./cabinet-data.js";
 import "./bashkir-keyboard.js";
 import { speakBashkir } from "./speech.js";
+import { initClouds } from "./clouds.js";
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -20,9 +21,6 @@ const RATING_CATEGORIES = [
   { id: "top", label: "Ученики", endpoint: "/ratings/top" },
   { id: "classes", label: "Классы", endpoint: "/ratings/classes" },
   { id: "schools", label: "Школы", endpoint: "/ratings/schools" },
-  { id: "accuracy", label: "Точность", endpoint: "/ratings/accuracy" },
-  { id: "vocabulary", label: "Словарь", endpoint: "/ratings/vocabulary" },
-  { id: "corrections", label: "Исправления", endpoint: "/ratings/corrections" },
   { id: "my-school", label: "Моя школа", endpoint: "/ratings/top" },
 ];
 
@@ -81,7 +79,6 @@ const State = {
   ratingPeriod: "week",
   ratingSchoolMode: "students",
   ratingRequest: 0,
-  ratingListExpanded: false,
   schools: [],
   schoolsMetadata: null,
   teacherReport: null,
@@ -316,7 +313,6 @@ function switchTab(tab) {
   });
   $("#top-hearts-wrap").hidden = ["community", "ratings", "cabinet"].includes(tab);
   if (location.hash !== `#${tab}`) history.replaceState(null, "", `#${tab}`);
-  window.scrollTo({ top: 0, behavior: "smooth" });
   if (tab === "course") renderCourse();
   if (tab === "community") {
     setCommunityMode(State.communityMode);
@@ -327,6 +323,9 @@ function switchTab(tab) {
     renderCabinetSafe();
     if (!$("#moderation-panel").hidden) loadModeration();
   }
+  const resetScroll = () => window.scrollTo({ top: 0, behavior: "instant" });
+  resetScroll();
+  requestAnimationFrame(resetScroll);
 }
 
 // ---------------------------------------------------------------------------
@@ -771,7 +770,7 @@ function observeDialog(stage) {
 
 function dialogBubble(message) {
   const translation = message.translation ? `<button class="chat-bubble__translate" type="button" data-translation-toggle aria-expanded="false">Перевод</button><span class="chat-bubble__translation" hidden>${esc(message.translation)}</span>` : "";
-  return `<div class="chat-bubble chat-bubble--${message.side}" data-side="${message.side}" lang="ba"><div class="chat-bubble__line">${message.side === "npc" ? `<button class="btn btn-ghost btn-icon chat-bubble__tts" type="button" data-character-tts="${esc(message.text)}" aria-label="Прослушать реплику">${icon("i-volume")}</button>` : ""}<span class="chat-bubble__content">${esc(message.text)}</span></div>${translation}</div>`;
+  return `<div class="cloud chat-bubble chat-bubble--${message.side}" data-side="${message.side}" lang="ba"><div class="chat-bubble__line">${message.side === "npc" ? `<button class="btn btn-ghost btn-icon chat-bubble__tts" type="button" data-character-tts="${esc(message.text)}" aria-label="Прослушать реплику">${icon("i-volume")}</button>` : ""}<span class="chat-bubble__content">${esc(message.text)}</span></div>${translation}</div>`;
 }
 
 function renderDialogMessages(chat, messages, stage, animateLast = false, originButton = null) {
@@ -1436,6 +1435,7 @@ async function submitProposal(event) {
 async function loadDailyTask() {
   const body = $("#daily-body");
   body.innerHTML = loadingBlock("Подбираем фрагмент для проверки…");
+  State.dailyStep = State.dailyTask ? Math.min(5, (State.dailyStep || 1) + 1) : 1;
   State.dailyMode = "actions";
   State.dailyResult = null;
   State.dailyCorrection = "";
@@ -1453,6 +1453,9 @@ function renderDaily() {
   const body = $("#daily-body");
   if (!task) return;
   const disabled = State.dailySubmitting ? "disabled" : "";
+  const step = State.dailyStep || 1;
+  const line = State.dailyMode === "fix" ? "Ничего, исправим" : State.dailyMode === "result" ? (State.dailyResult?.correct ? "Так и есть!" : "Ничего, исправим") : step >= 3 ? "Ты уже на полпути" : "Как переведёшь?";
+  const emotion = State.dailyMode === "fix" ? "thinking" : State.dailyMode === "result" && State.dailyResult?.correct ? "success" : "happy";
   let actions = "";
   if (State.dailyMode === "actions") {
     actions = `<div class="daily-bottom"><div class="daily-actions"><button class="btn btn-success btn-lg" type="button" data-daily="correct" ${disabled}>${icon("i-check")}Верно</button><button class="btn btn-ghost btn-lg" type="button" data-daily="fix" ${disabled}>${icon("i-x")}Неверно</button></div><button class="daily-skip" type="button" data-daily="skip" ${disabled}>Пропустить</button></div>`;
@@ -1466,7 +1469,8 @@ function renderDaily() {
     const statusLabels = { confirmed: "Перевод подтверждён", expert_review: "Нужна экспертная проверка", pending: "Голос сохранён" };
     actions = `<div class="daily-result">${result.correct ? '<span class="book-stamp">Верно ✓</span>' : ""}<p>${esc(result.message)} ${esc(statusLabels[result.consensus] || result.consensus)}</p><button class="btn btn-primary btn-block" type="button" data-daily="next">Следующая фраза</button></div>`;
   }
-  body.innerHTML = `<article class="workout-card card-task daily-card ${State.dailySubmitting ? "is-turning" : ""}"><div class="daily-card__content"><div class="daily-phrase"><p class="text-ba" lang="ba">${esc(task.text_ba)}</p><button class="btn btn-ghost btn-icon" type="button" data-daily-tts="${esc(task.text_ba)}" aria-label="Прослушать фразу">${icon("i-volume")}</button></div><p class="source-line">${icon("i-book", "icon icon-sm")}${esc(sourceText(task.source))}</p><div class="translation-panel"><span>Предложенный перевод</span><p>${esc(task.translation)}</p></div></div>${actions}</article>`;
+  const progress = Array.from({ length: 5 }, (_, index) => `<span class="${index < step ? "is-filled" : ""}"></span>`).join("");
+  body.innerHTML = `<article class="workout-card card-task daily-card ${State.dailySubmitting ? "is-turning" : ""}"><div class="daily-progress" role="progressbar" aria-label="Проверка фраз" aria-valuemin="1" aria-valuemax="5" aria-valuenow="${step}">${progress}</div><div class="daily-mascot" data-emotion="${emotion}"><div class="daily-mascot__crop"><img src="${spriteUrl("boy", emotion === "thinking" ? "thinking" : emotion === "success" ? "success" : "idle")}" width="156" height="156" alt="" draggable="false"></div><div class="cloud cloud--right">${line}</div></div><div class="daily-card__content"><div class="daily-phrase"><p class="text-ba" lang="ba">${esc(task.text_ba)}</p><button class="btn btn-ghost btn-icon" type="button" data-daily-tts="${esc(task.text_ba)}" aria-label="Прослушать фразу">${icon("i-volume")}</button></div><p class="source-line">${icon("i-book", "icon icon-sm")}${esc(sourceText(task.source))}</p><div class="translation-panel"><span>Предложенный перевод</span><p>${esc(task.translation)}</p></div></div>${actions}</article>`;
   if (State.dailyMode === "fix") {
     const textarea = $("#daily-correction");
     textarea.addEventListener("input", () => { $('[data-daily="submit-fix"]').disabled = textarea.value.trim().length < 2; });
@@ -1635,16 +1639,31 @@ async function loadRatings() {
   }
 }
 
+function ratingPersonName(value) {
+  return String(value || "Ученик").trim().toLocaleLowerCase("ru").split(/(\s+|-)/).map((part) => {
+    if (!part || /^\s+$/.test(part) || part === "-") return part;
+    return `${part[0].toLocaleUpperCase("ru")}${part.slice(1)}`;
+  }).join("");
+}
+
+function ratingSchoolName(value) {
+  return String(value || "").normalize("NFKC")
+    .replace(/["„“”]([^"„“”]+)["„“”]/g, "«$1»")
+    .replace(/«\s*([^»]+)\s*»/g, "«$1»")
+    .replace(/\s*,?\s*(?:г\.?|город)\s+[^,]+$/i, "")
+    .replace(/\b(?:No|N|№)\s*/gi, "№ ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function ratingViewModel(item) {
   const category = State.ratingCategory;
   const classes = category === "classes" || (category === "my-school" && State.ratingSchoolMode === "classes");
-  if (category === "schools") return { name: item.school, meta: `${formatNumber(item.students)} учеников`, value: item.points, suffix: " очков" };
-  if (classes) return { name: `${item.class_name} класс`, meta: item.school, value: item.points, suffix: " очков" };
-  const meta = [item.school, item.class_name].filter(Boolean).join(" · ");
-  if (category === "accuracy") return { name: item.full_name, meta: `${meta} · ${item.correct_answers}/${item.total_answers}`, value: item.accuracy, suffix: "%" };
-  if (category === "vocabulary") return { name: item.full_name, meta, value: item.unique_translations, suffix: " слов" };
-  if (category === "corrections") return { name: item.full_name, meta, value: item.corrections, suffix: " испр." };
-  return { name: item.full_name, meta, value: item.points, suffix: " очков" };
+  const school = ratingSchoolName(item.school);
+  if (category === "schools") return { name: school, meta: `${formatNumber(item.students)} учеников`, value: item.points, suffix: " очков" };
+  if (classes) return { name: `${item.class_name} класс`, meta: school, value: item.points, suffix: " очков" };
+  const meta = [school, item.class_name].filter(Boolean).join(" · ");
+  return { name: ratingPersonName(item.full_name), meta, value: item.points, suffix: " очков" };
 }
 
 function ratingKey(item) {
@@ -1656,13 +1675,14 @@ function ratingDisplayName(item, view) {
   const isPerson = !["classes", "schools"].includes(State.ratingCategory) && !(State.ratingCategory === "my-school" && State.ratingSchoolMode === "classes");
   if (!isPerson) return view.name;
   const parts = String(view.name || "Ученик").trim().split(/\s+/);
-  return `${parts[0]}${parts[1] ? ` ${parts[1][0]}.` : ""}`;
+  return `${parts[0]}${parts[1] ? ` ${parts[1][0].toLocaleUpperCase("ru")}.` : ""}`;
 }
 
 function mountRatingShell() {
   const body = $("#rating-body");
   if (ratingUI.mounted) return;
-  body.innerHTML = `<div class="podium" aria-label="Три лучших результата">${[2, 1, 3].map((rank) => `<button class="podium-place podium-place--${rank}" type="button" data-podium-rank="${rank}" hidden>${rank === 1 ? icon("i-crown", "icon podium-crown") : '<span class="podium-crown" aria-hidden="true"></span>'}<span class="podium-avatar"></span><span class="podium-name"></span><strong class="podium-points"><span data-rating-count>0</span>${icon("i-honey")}</strong><span class="podium-step">${rank}</span></button>`).join("")}</div><div class="rating-invite" hidden><div class="mascot-crop" data-facing="right"><div class="character" data-char="boy" aria-hidden="true"><img class="character__img" src="${spriteUrl("boy")}" width="180" height="180" alt=""></div></div><div class="cloud">Заниматься — и ты в списке!</div></div><h3 class="rank-list__title" hidden>Другие ученики</h3><div class="rank-list__rows"></div><button class="rank-row rank-item rank-row--me rank-item--me rank-row--sticky" type="button" data-rating-sticky hidden><span class="rank-badge rank-badge--other"></span><span class="avatar"></span><span class="rank-info"><span class="rank-name"></span><span class="rank-meta"></span></span><strong class="rank-points"><span data-rating-count>0</span>${icon("i-honey")}</strong></button><div class="empty-state rating-empty" hidden><div class="stage stage--empty"><img class="stage__mascot" src="${spriteUrl("boy")}" width="120" height="120" alt=""><div class="cloud">Заниматься — и ты в списке!</div></div><strong></strong><p></p><button class="btn btn-primary" type="button" data-choose-school hidden>Выбрать школу</button></div>`;
+  body.innerHTML = `<section class="podium-card" aria-label="Лидеры рейтинга"><div class="podium" aria-label="Три лучших результата">${[2, 1, 3].map((rank) => `<button class="podium-place podium-place--${rank}" type="button" data-podium-rank="${rank}" hidden>${rank === 1 ? icon("i-crown", "icon podium-crown") : '<span class="podium-crown" aria-hidden="true"></span>'}<span class="podium-avatar"></span><span class="podium-name"></span><strong class="podium-points"><span data-rating-count>0</span>${icon("i-honey")}</strong><span class="podium-step">${rank}</span></button>`).join("")}</div><div class="podium-card__periods"></div></section><h3 class="rank-list__title" hidden>Остальные результаты</h3><div class="rank-list__rows"></div><button class="rank-row rank-item rank-row--me rank-item--me rank-row--sticky" type="button" data-rating-sticky hidden><span class="rank-badge rank-badge--other"></span><span class="avatar"></span><span class="rank-info"><span class="rank-name"></span><span class="rank-meta"></span></span><strong class="rank-points"><span data-rating-count>0</span>${icon("i-honey")}</strong></button><div class="empty-state rating-empty" hidden><strong></strong><p></p><button class="btn btn-primary" type="button" data-choose-school hidden>Выбрать школу</button></div>`;
+  $(".podium-card__periods", body).append($("#rating-periods"));
   body.addEventListener("click", (event) => {
     const choose = event.target.closest("[data-choose-school]");
     if (choose) { switchTab("cabinet"); return; }
@@ -1742,7 +1762,7 @@ function renderRatings(rows, empty = {}) {
   $(".rating-empty p", body).textContent = empty.text || "Выберите другой период или выполните задание первым.";
   $("[data-choose-school]", body).hidden = !empty.action;
   podium.hidden = !rows.length;
-  $(".rating-invite", body).hidden = rows.length === 0 || rows.length > 3;
+  $(".podium-card", body).hidden = !rows.length;
   [2, 1, 3].forEach((rank) => {
     const button = $(`[data-podium-rank="${rank}"]`, podium);
     const item = rows[rank - 1];
@@ -1756,13 +1776,7 @@ function renderRatings(rows, empty = {}) {
     tweenRatingNumber($("[data-rating-count]", button), view.value);
     flipElement($(".podium-avatar", button), oldAvatars.get(button.dataset.rankKey));
   });
-  if (rows.length <= RANK_LIST_LIMIT + 3) State.ratingListExpanded = false;
-  const toggle = $("#rating-list-toggle");
-  toggle.textContent = State.ratingListExpanded ? "Свернуть" : "Список";
-  toggle.setAttribute("aria-pressed", String(State.ratingListExpanded));
-  toggle.disabled = rows.length <= RANK_LIST_LIMIT + 3;
-  toggle.title = State.ratingListExpanded ? "Показать первые восемь" : "Показать до 100 мест";
-  const visible = rows.slice(0, State.ratingListExpanded ? 100 : RANK_LIST_LIMIT + 3);
+  const visible = rows.slice(0, RANK_LIST_LIMIT + 3);
   $(".rank-list__title", body).hidden = visible.length <= 3;
   const nextKeys = new Set();
   visible.slice(3).forEach((item, index) => {
@@ -2144,14 +2158,14 @@ function handleProfileClick(event) {
   if (target.hasAttribute("data-reminder-time")) { openReminderSheet(); return; }
   if (target.hasAttribute("data-telegram")) {
     const connected = Boolean(window.Telegram?.WebApp?.initDataUnsafe?.user);
-    const { close } = openCabinetSheet(connected ? "Отключить Telegram?" : "Telegram", connected ? '<p>Управление привязкой доступно в настройках Telegram.</p><button class="btn btn-primary btn-lg btn-block" type="button" data-telegram-ok>Понятно</button>' : '<p>Откройте Айталай через Telegram, чтобы вход сохранялся автоматически.</p><button class="btn btn-primary btn-lg btn-block" type="button" data-telegram-ok>Понятно</button>', "sheet--telegram");
+    const { close } = openCabinetSheet(connected ? "Отключить Telegram?" : "Telegram", connected ? '<p>Управление привязкой доступно в настройках Telegram.</p><button class="btn btn-primary btn-lg btn-block" type="button" data-telegram-ok>Понятно</button>' : '<p>Откройте Әйтәләй через Telegram, чтобы вход сохранялся автоматически.</p><button class="btn btn-primary btn-lg btn-block" type="button" data-telegram-ok>Понятно</button>', "sheet--telegram");
     $("[data-telegram-ok]", document.body).addEventListener("click", close);
     return;
   }
   if (target.dataset.roleTarget) { $(`#${target.dataset.roleTarget}`).scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" }); return; }
   if (target.hasAttribute("data-export-sheet")) { openExportSheet(); return; }
   if (target.hasAttribute("data-about")) {
-    const { close } = openCabinetSheet("О проекте", '<p>Айталай — башкирская языковая школа с уроками и народной библиотекой.</p><p class="muted">Версия 6.0</p><button class="btn btn-primary btn-lg btn-block" type="button" data-about-ok>Понятно</button>', "sheet--about");
+    const { close } = openCabinetSheet("О проекте", '<p>Әйтәләй — башкирская языковая школа с уроками и народной библиотекой.</p><p class="muted">Версия 6.0</p><button class="btn btn-primary btn-lg btn-block" type="button" data-about-ok>Понятно</button>', "sheet--about");
     $("[data-about-ok]", document.body).addEventListener("click", close);
     return;
   }
@@ -2206,7 +2220,7 @@ function renderProfile() {
     ${nearestBlock}
     <section class="awards-section cabinet-block" style="--cabinet-index:5"><div class="section-title-row"><h2>Награды</h2><span class="awards-count">${earnedCount}/${awards.length}<span class="mini-progress"><span style="width:${(earnedCount / awards.length) * 100}%"></span></span></span></div><div class="showcase ${firstCascade ? "showcase--first" : ""}">${showcase}</div></section>
     <section class="settings-section cabinet-block" style="--cabinet-index:6"><h2>Настройки</h2>${settingsGroup("Обучение", [settingsRow("i-school", "Школа и класс", `${normalizeSchool(user.school) || "Не выбрана"}${user.class_name ? ` · ${user.class_name}` : ""}`, "data-school-settings"), settingsRow("i-globe", "Языковая пара", "Башкирский ↔ русский", "data-profile-language"), settingsSwitch("Озвучка", "autoVoice", "i-speaker")])}${settingsGroup("Уведомления", [settingsSwitch("Звук", "sound", "i-volume"), settingsSwitch("Напоминания", "reminders", "i-bell"), `<div class="reminder-time-wrap ${settings.reminders ? "is-visible" : ""}">${settingsRow("i-clock", "Время напоминания", settings.reminderTime, `data-reminder-time tabindex="${settings.reminders ? "0" : "-1"}"`)}</div>`, settingsRow("i-telegram", "Telegram", window.Telegram?.WebApp?.initDataUnsafe?.user ? "Подключён" : "Подключить", "data-telegram")])}${roleRows.join("")}${settingsGroup("О проекте", [settingsRow("i-info", "О проекте", "", "data-about"), settingsRow("i-book", "Помощь", "", "data-help")])}</section>
-    <button id="logout-button" class="profile-logout cabinet-block" type="button" style="--cabinet-index:7">${icon("i-logout")}Выйти</button><span class="app-version">Айталай · версия 6.0</span></div>`;
+    <button id="logout-button" class="profile-logout cabinet-block" type="button" style="--cabinet-index:7">${icon("i-logout")}Выйти</button><span class="app-version">Әйтәләй · версия 7.0</span></div>`;
   container.onclick = handleProfileClick;
   State.avatarJustSaved = false;
   sessionStorage.setItem("aitalay.cabinetShown", "1");
@@ -2335,10 +2349,6 @@ function bindEvents() {
     $("#login-form [name='password']").value = "1234";
     login(button.dataset.demoEmail, "1234", button);
   }));
-  $("#rating-list-toggle").addEventListener("click", () => {
-    State.ratingListExpanded = !State.ratingListExpanded;
-    renderRatings(ratingUI.rows);
-  });
   $$('.duo-nav-tab').forEach((link) => link.addEventListener("click", (event) => {
     event.preventDefault();
     switchTab(link.dataset.tab);
@@ -2471,6 +2481,7 @@ function bindEvents() {
 
 async function init() {
   bindEvents();
+  initClouds();
   await loadSchoolDirectory();
   const telegram = window.Telegram?.WebApp;
   if (telegram) {
@@ -2507,4 +2518,4 @@ async function init() {
 document.addEventListener("DOMContentLoaded", init);
 
 // Удобно проверить адрес API в консоли без вывода токена.
-console.info(`Айталай API: ${API_URL}`);
+console.info(`Әйтәләй API: ${API_URL}`);

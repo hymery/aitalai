@@ -17,12 +17,13 @@ export default defineConfig(({ mode }) => {
         ".trycloudflare.com",
         ".serveousercontent.com",
         ".tuna.am",
+        ".tuna.free",
       ],
     },
     preview: {
       host: "0.0.0.0",
       port: 5174,
-      allowedHosts: [".serveousercontent.com", ".tuna.am"],
+      allowedHosts: [".serveousercontent.com", ".tuna.am", ".tuna.free"],
       proxy: {
         "/api": {
           target: "http://localhost:8000",

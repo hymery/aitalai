@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#1176C8">
   <meta name="description" content="Дизайн-система «Башкирской языковой школы»: токены, типографика, орнамент, иконки и компоненты.">
-  <title>Дизайн-система — Башкирская языковая школа</title>
+  <title>Дизайн-система — Әйтәләй</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3CclipPath id='r'%3E%3Crect width='32' height='32' rx='9'/%3E%3C/clipPath%3E%3C/defs%3E%3Cg clip-path='url(%23r)'%3E%3Crect width='32' height='32' fill='%23FFFFFF'/%3E%3Crect width='32' height='11' fill='%231176C8'/%3E%3Crect y='11' width='32' height='10' fill='%23FFFFFF'/%3E%3Crect y='21' width='32' height='11' fill='%232BA84A'/%3E%3Ccircle cx='16' cy='16' r='4.5' fill='%23F2B705'/%3E%3C/g%3E%3C/svg%3E">
 
   <!-- Nunito: веса 600–900. Google Fonts отдаёт cyrillic-ext для ә ө ү ғ ҡ ң ҫ ҙ һ -->
@@ -1590,10 +1590,10 @@
 
 <header class="sg-header">
   <div class="sg-header__inner">
-    <a class="brand" href="#top" aria-label="Башкирская языковая школа — к началу">
+    <a class="brand" href="#top" aria-label="Әйтәләй — к началу">
       <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
       <span class="brand-text">
-        <strong>Башкирская языковая школа</strong>
+        <strong>Әйтәләй</strong>
         <span>дизайн-система</span>
       </span>
     </a>
@@ -1607,12 +1607,13 @@
       <a href="#ornament">Волны</a>
       <a href="#hotbar">Хот-бар</a>
       <a href="#quest">Диалог</a>
+      <a href="#clouds">Облака</a>
       <a href="#community">Книги</a>
       <a href="#rating-profile">Пьедестал</a>
-      <a href="#cabinet-v6">Кабинет</a>
+      <a href="#cabinet-v7">Кабинет</a>
       <a href="#adaptive">Адаптив</a>
     </nav>
-    <span class="sg-version">v6.0</span>
+    <span class="sg-version">v7.0</span>
   </div>
 </header>
 <div class="ornament-strip" aria-hidden="true"></div>
@@ -1621,7 +1622,7 @@
   <section class="sg-hero" id="top">
     <div class="sg-hero__copy">
       <p class="kicker">Дизайн-система · 2026</p>
-      <h1>Башкирская языковая школа</h1>
+      <h1>Әйтәләй</h1>
       <p class="sg-hero__lead">Плоский, яркий интерфейс для школьников 10–17 лет: переводят фразы, получают очки и соревнуются школами. Один главный акцент на экран, объёмные кнопки, цельные маскоты и орнамент в шести разрешённых местах.</p>
       <div class="sg-hero__facts" aria-label="Ключевые параметры системы">
         <div class="sg-fact"><strong>360</strong><span>px mobile-first</span></div>
@@ -2020,7 +2021,7 @@
       <div class="scroll-x"><table class="state-table"><thead><tr><th>Default</th><th>Hover</th><th>Active</th><th>Selected</th><th>Correct</th><th>Wrong</th><th>Used / disabled</th><th>Focus</th></tr></thead><tbody><tr>
         <td><button class="tile" type="button">Сәй</button></td><td><button class="tile is-hover" type="button">Сәй</button></td><td><button class="tile is-active" type="button">Сәй</button></td><td><button class="tile is-selected" type="button">Сәй</button></td><td><button class="tile is-correct" type="button">✓ Сәй</button></td><td><button class="tile is-wrong" type="button">✕ Сәй</button></td><td><button class="tile is-used" type="button" disabled>Сәй</button></td><td><button class="tile is-focus" type="button">Сәй</button></td>
       </tr></tbody></table></div>
-      <p class="note">.choice растягивает плашку на всю ширину. .answer-line — единственный разрешённый градиент: две строки по 56 px. Цвет всегда дублируется ✓ или ✕.</p>
+      <p class="note">.choice растягивает плашку на всю ширину. Линейка .answer-line рисуется отдельным SVG без градиентов. Цвет всегда дублируется ✓ или ✕.</p>
     </div>
   </section>
 
@@ -2036,20 +2037,22 @@
   </section>
 
   <section class="sg-section" id="course-map">
-    <header class="sg-section__head"><span class="sg-num">08</span><div><h2>Карта курса</h2><p>Идеальные круги 72/96 px, концентричное кольцо и пузырь в потоке. Маскоты занимают отдельные строки и не пересекают тропинку.</p></div></header>
+    <header class="sg-section__head"><span class="sg-num">08</span><div><h2>Карта курса</h2><p>Круги 72/96 px идут по мягкой волне. Большая сюжетная сцена находится рядом с тропой, а у текущего урока показаны действие и название.</p></div></header>
     <div class="sg-section__body">
       <div class="sg-map-demo">
         <div class="unit unit--1"><div><strong>Раздел 1</strong><h3>Чаепитие у Өләсәй</h3></div><span class="unit-banner__progress">1/3</span></div>
-        <div class="path-tree">
-          <svg class="path-svg" viewBox="0 0 360 560" preserveAspectRatio="none" aria-hidden="true"><path d="M180 24 C230 80 250 170 220 230 S150 390 180 500"></path><path class="is-done" d="M180 24 C210 60 225 100 220 130"></path></svg>
-          <div class="path-row"><div class="node-wrap" style="--dx:0"><div class="node-circle"><button class="node is-done" type="button" aria-label="Пройденный урок"><svg class="icon" aria-hidden="true"><use href="#i-check"></use></svg></button></div></div></div>
-          <div class="path-row"><div class="node-wrap" style="--dx:40"><div class="node-guide"><div class="node-guide__bubble"><strong>Начать</strong><span>Собираем предложения</span></div></div><div class="node-circle"><span class="node__ring" aria-hidden="true"></span><button class="node is-current" type="button" aria-label="Текущий урок"><svg class="icon" aria-hidden="true"><use href="#i-book"></use></svg></button></div></div></div>
-          <div class="path-row path-row--mascot path-row--left"><img class="path-mascot" src="/characters/granny_idle.webp" width="120" height="120" alt="" aria-hidden="true"><div class="cloud path-cloud">Ты молодец</div></div>
-          <div class="path-row"><div class="node-wrap" style="--dx:-40"><div class="node-circle"><button class="node is-locked" type="button" aria-label="Заблокированный урок"><svg class="icon" aria-hidden="true"><use href="#i-lock"></use></svg></button></div></div></div>
-          <div class="path-row"><div class="node-wrap"><div class="node-circle node-circle--boss"><button class="node node--boss is-locked" type="button" aria-label="Заблокированный квест"><svg class="icon" aria-hidden="true"><use href="#i-cup"></use></svg></button></div></div></div>
+        <div class="unit-path-layout">
+          <figure class="unit-scene unit-scene--1"><img src="scenes/scene_granny_boy.png" width="512" height="512" alt="Мальчик и бабушка за чаепитием с книгой"></figure>
+          <div class="path-tree">
+            <svg class="path-svg" viewBox="0 0 360 560" preserveAspectRatio="none" aria-hidden="true"><path d="M180 24 C230 80 250 170 220 230 S150 390 180 500"></path><path class="is-done" d="M180 24 C210 60 225 100 220 130"></path></svg>
+            <div class="path-row path-row--left"><div class="node-wrap"><div class="node-circle"><button class="node is-done" type="button" aria-label="Пройденный урок"><svg class="icon" aria-hidden="true"><use href="#i-check"></use></svg></button></div></div></div>
+            <div class="path-row path-row--right"><div class="node-wrap"><div class="node-guide"><div class="node-guide__bubble"><strong>Начать</strong><span>Собираем предложения</span></div></div><div class="node-circle"><span class="node__ring" aria-hidden="true"></span><button class="node is-current" type="button" aria-label="Текущий урок"><svg class="icon" aria-hidden="true"><use href="#i-book"></use></svg></button></div></div></div>
+            <div class="path-row path-row--left"><div class="node-wrap"><div class="node-circle"><button class="node is-locked" type="button" aria-label="Заблокированный урок"><svg class="icon" aria-hidden="true"><use href="#i-lock"></use></svg></button></div></div></div>
+            <div class="path-row path-row--center"><div class="node-wrap"><div class="node-circle node-circle--boss"><button class="node node--boss is-locked" type="button" aria-label="Заблокированный квест"><svg class="icon" aria-hidden="true"><use href="#i-cup"></use></svg></button></div></div></div>
+          </div>
         </div>
       </div>
-      <p class="note">--dx задаётся на .node-wrap: 0, 40, 64, 40, 0, −40, −64, −40. Кольцо находится в .node-circle; грань box-shadow не влияет на центр. Один маскот на 3–4 узла, с противоположной от смещения стороны.</p>
+      <p class="note">Сцена является соседним элементом тропы и не добавляет лишнюю строку. SVG-путь строится только между кнопками уроков.</p>
     </div>
   </section>
 
@@ -2060,17 +2063,27 @@
 
   <section class="sg-section" id="quest">
     <header class="sg-section__head"><span class="sg-num">10</span><div><h2>Диалог-сцена и реплики изо рта</h2><p>Два крупных героя стоят лицом друг к другу. Координата `data-mouth` связывает реплику с говорящим, а ResizeObserver пересчитывает её при изменении сцены.</p></div></header>
-    <div class="sg-section__body"><div class="dialog__stage"><div class="mascot-crop dialog__actor" data-dialog-side="player" data-facing="right" data-mouth="66 25"><div class="character"><img class="character__img" src="characters/boy_idle.webp" width="320" height="320" alt=""></div></div><div class="mascot-crop dialog__actor" data-dialog-side="npc" data-facing="left" data-mouth="34 25"><div class="character"><img class="character__img" src="characters/granny_idle.webp" width="320" height="320" alt=""></div></div></div><div class="boss-chat dialog__chat" style="margin-top:var(--s3)"><div class="chat-bubble chat-bubble--npc" lang="ba"><div class="chat-bubble__line"><span class="chat-bubble__content">Һаумыһығыҙ!</span></div></div><div class="chat-bubble chat-bubble--player is-correct" lang="ba"><div class="chat-bubble__line"><span class="chat-bubble__content">Һаумыһығыҙ!</span></div></div><div class="chat-bubble chat-typing" aria-label="Персонаж печатает"><i></i><i></i><i></i></div></div><p class="note">Новая реплика появляется за 350 ms, текст раскрывается следом. Выбор FLIP-ом превращается в облако игрока; проверка окрашивает именно его. Перевод раскрывается по тапу, озвучка имеет цель 40 px внутри кнопки 44 px.</p></div>
+    <div class="sg-section__body"><div class="dialog__stage"><div class="mascot-crop dialog__actor" data-dialog-side="player" data-facing="right" data-mouth="66 25"><div class="character"><img class="character__img" src="characters/boy_idle.webp" width="320" height="320" alt=""></div></div><div class="mascot-crop dialog__actor" data-dialog-side="npc" data-facing="left" data-mouth="34 25"><div class="character"><img class="character__img" src="characters/granny_idle.webp" width="320" height="320" alt=""></div></div></div><div class="boss-chat dialog__chat" style="margin-top:var(--s3)"><div class="cloud chat-bubble chat-bubble--npc" lang="ba"><div class="chat-bubble__line"><span class="chat-bubble__content">Һаумыһығыҙ!</span></div></div><div class="cloud chat-bubble chat-bubble--player is-correct" lang="ba"><div class="chat-bubble__line"><span class="chat-bubble__content">Һаумыһығыҙ!</span></div></div></div><p class="note">Новая реплика появляется за 350 ms. Выбор FLIP-ом превращается в облако игрока; перевод раскрывается по тапу.</p></div>
+  </section>
+
+  <section class="sg-section" id="clouds">
+    <header class="sg-section__head"><span class="sg-num">10A</span><div><h2>Облако и fitCloud</h2><p>Один компонент для сцен и чата: белая подложка, линия 2 px, нижняя грань 4 px и текст без обрезки.</p></div></header>
+    <div class="sg-section__body"><div class="sg-component-grid"><div class="cloud">Так и есть!</div><div class="cloud cloud--ba" lang="ba">Һаумыһығыҙ! Бөгөн башҡортса һөйләшәбеҙ.</div></div><p class="note">`fitCloud()` проходит размеры 22/20/18/16 px, допускает до трёх строк и включает `.cloud--wide`, если места всё же мало. `--tail-x` направляет хвост к герою, а `--cloud-shift` удерживает облако внутри viewport.</p></div>
   </section>
 
   <section class="sg-section" id="community">
-    <header class="sg-section__head"><span class="sg-num">11</span><div><h2>Книга: закрытая/открытая/перелистывание</h2><p>Две книги всегда остаются в сетке 1fr 1fr. Лицевая обложка использует `backface-visibility:hidden`, поэтому зеркального текста нет.</p></div></header>
-    <div class="sg-section__body"><div class="bookcase"><div class="book-shelf"><div class="book book--blue"><span class="book__body"><span class="book__bookmark"></span><span class="book__inside"></span><span class="book__front book__cover"><span class="book__spine"></span><span class="book__emboss"><svg class="icon"><use href="#i-stamp"></use></svg></span><strong>Проверка</strong><small>Пять фраз на сегодня</small></span></span></div><div class="book book--green"><span class="book__body"><span class="book__bookmark"></span><span class="book__inside"></span><span class="book__front book__cover"><span class="book__spine"></span><span class="book__emboss"><svg class="icon"><use href="#i-feather"></use></svg></span><strong>Предложить</strong><small>Добавь свою фразу</small></span></span></div></div></div><div class="book-workspace is-ready is-cover-opening" style="position:relative;top:auto;bottom:auto;left:auto;width:100%;height:360px;margin-top:var(--s4);transform:none"><span class="book-workspace__cover"></span><article class="workout-card daily-card"><div class="daily-card__content"><div class="daily-phrase"><p class="text-ba" lang="ba">Һаумыһығыҙ!</p></div><p class="source-line"><svg class="icon icon-sm"><use href="#i-book"></use></svg>Разговорник</p><div class="translation-panel"><span>Предложенный перевод</span><p>Здравствуйте!</p></div></div><span class="book-stamp">Верно ✓</span></article></div><p class="note">Открытие: приближение 400 ms → обложка 500 ms → каскад контента. Закрытие идёт в обратном порядке. Перелистывание длится 500 ms; «Пропустить» остаётся текстовой ссылкой с высотой 44 px.</p></div>
+    <header class="sg-section__head"><span class="sg-num">11</span><div><h2>Книга на полке и страница проверки</h2><p>Маскот 150 px выглядывает из-за шкафа. Плоские словари 4/5 используют тонкий корешок, небольшую полосу страниц, короткую закладку, простую иконку и подпись без 3D и двойных рамок.</p></div></header>
+    <div class="sg-section__body">
+      <div class="library-scene"><div class="mascot-crop mascot-crop--librarian" data-facing="right"><div class="character stage__mascot"><img class="character__img" src="characters/boy_idle.webp" width="220" height="220" alt=""></div></div><div class="cloud cloud--right">Выбери книгу</div></div>
+      <div class="bookcase"><div class="book-shelf"><div class="book book--blue"><span class="book__body"><span class="book__bookmark"></span><span class="book__inside"></span><span class="book__front book__cover"><span class="book__spine"></span><span class="book__emboss"><svg class="icon"><use href="#i-stamp"></use></svg></span><strong>Проверка</strong><small>Пять фраз на сегодня</small></span></span></div><div class="book book--green"><span class="book__body"><span class="book__bookmark"></span><span class="book__inside"></span><span class="book__front book__cover"><span class="book__spine"></span><span class="book__emboss"><svg class="icon"><use href="#i-feather"></use></svg></span><strong>Предложить</strong><small>Добавь свою фразу</small></span></span></div></div></div>
+      <h3 class="sg-subhead">Страница проверки</h3><div class="book-workspace is-ready is-cover-opening" style="position:relative;top:auto;bottom:auto;left:auto;width:100%;height:520px;margin-top:var(--s4);transform:none"><span class="book-workspace__cover"></span><article class="workout-card daily-card"><div class="daily-progress"><span class="is-filled"></span><span></span><span></span><span></span><span></span></div><div class="daily-mascot"><div class="daily-mascot__crop"><img src="characters/boy_idle.webp" width="156" height="156" alt=""></div><div class="cloud cloud--right">Как переведёшь?</div></div><div class="daily-card__content"><div class="daily-phrase"><p class="text-ba" lang="ba">Һаумыһығыҙ!</p></div><p class="source-line"><svg class="icon icon-sm"><use href="#i-book"></use></svg>Разговорник</p><div class="translation-panel"><span>Предложенный перевод</span><p>Здравствуйте!</p></div></div><div class="daily-bottom"><div class="daily-actions"><button class="btn btn-success" type="button">Верно</button><button class="btn btn-ghost" type="button">Неверно</button></div></div></article></div>
+      <p class="note">Пять сегментов показывают прогресс. Фраза заключена в линейки, перевод лежит на записке со скотчем, а действия остаются в одном ряду. Анимация открытия и перелистывания отключается при reduced-motion.</p>
+    </div>
   </section>
 
   <section class="sg-section" id="rating-profile">
-    <header class="sg-section__head"><span class="sg-num">12</span><div><h2>Пьедестал и анимация перетекания</h2><p>Места 2–1–3 имеют высоту 96/120/80 px. Аватары и строки сохраняют DOM-узлы и перемещаются FLIP-ом за 500 ms.</p></div></header>
-    <div class="sg-section__body"><div class="podium"><div class="podium-place podium-place--2"><span class="podium-crown"></span><span class="podium-avatar">ЛМ</span><span class="podium-name">Лилия М.</span><strong class="podium-points">160<svg class="icon"><use href="#i-honey"></use></svg></strong><span class="podium-step">2</span></div><div class="podium-place podium-place--1"><svg class="icon podium-crown"><use href="#i-crown"></use></svg><span class="podium-avatar">АЮ</span><span class="podium-name">Айгуль Ю.</span><strong class="podium-points">340<svg class="icon"><use href="#i-honey"></use></svg></strong><span class="podium-step">1</span></div><div class="podium-place podium-place--3"><span class="podium-crown"></span><span class="podium-avatar">РР</span><span class="podium-name">Руслан Р.</span><strong class="podium-points">120<svg class="icon"><use href="#i-honey"></use></svg></strong><span class="podium-step">3</span></div></div><div class="rank-list__rows"><div class="rank-row rank-item"><span class="rank-badge rank-badge--other">4</span><span class="avatar">АР</span><span class="rank-info"><span class="rank-name">Азат Р.</span><span class="rank-meta">БЛИ №3 · 7А</span></span><strong class="rank-points">90<svg class="icon"><use href="#i-honey"></use></svg></strong></div></div><div class="rating-periods" style="--active-index:0"><span class="sliding-indicator"></span><span class="chip is-active">Неделя</span><span class="chip">Месяц</span><span class="chip">Всё время</span></div><p class="note">Числа пересчитываются за 450 ms от текущего отображаемого значения; прежний rAF отменяется при быстром ретаргетинге. Старый контент остаётся во время запроса и при ошибке. Reduced-motion показывает итог мгновенно.</p></div>
+    <header class="sg-section__head"><span class="sg-num">12</span><div><h2>Пьедестал в рамке</h2><p>Четыре категории: Ученики, Классы, Школы и Моя школа. Пьедестал 2–1–3 и периоды объединены в `.podium-card`.</p></div></header>
+    <div class="sg-section__body"><div class="podium-card"><div class="podium"><div class="podium-place podium-place--2"><span class="podium-crown"></span><span class="podium-avatar">ЛМ</span><span class="podium-name">Лилия М.</span><strong class="podium-points">160<svg class="icon"><use href="#i-honey"></use></svg></strong><span class="podium-step">2</span></div><div class="podium-place podium-place--1"><svg class="icon podium-crown"><use href="#i-crown"></use></svg><span class="podium-avatar">АЮ</span><span class="podium-name">Айгуль Ю.</span><strong class="podium-points">340<svg class="icon"><use href="#i-honey"></use></svg></strong><span class="podium-step">1</span></div><div class="podium-place podium-place--3"><span class="podium-crown"></span><span class="podium-avatar">РР</span><span class="podium-name">Руслан Р.</span><strong class="podium-points">120<svg class="icon"><use href="#i-honey"></use></svg></strong><span class="podium-step">3</span></div></div><div class="rating-periods" style="--active-index:0"><span class="sliding-indicator"></span><span class="chip is-active">Неделя</span><span class="chip">Месяц</span><span class="chip">Всё время</span></div></div><div class="rank-list__rows"><div class="rank-row rank-item"><span class="rank-badge rank-badge--other">4</span><span class="avatar">АР</span><span class="rank-info"><span class="rank-name">Азат Р.</span><span class="rank-meta">БЛИ № 3 · 7А</span></span><strong class="rank-points">90<svg class="icon"><use href="#i-honey"></use></svg></strong></div></div><p class="note">Имена начинаются с заглавной буквы, городское окончание школы скрывается, а метаданные занимают одну строку. Count-up и FLIP сохраняются; reduced-motion показывает итог мгновенно.</p></div>
   </section>
 
   <section class="sg-section" id="characters">
@@ -2695,12 +2708,12 @@
     </div>
   </section>
 
-  <section class="sg-section" id="cabinet-v6">
+  <section class="sg-section" id="cabinet-v7">
     <header class="sg-section__head">
       <span class="sg-num">20</span>
       <div>
-        <h2>Кабинет v6</h2>
-        <p>Паспорт, прогресс, награды и настройки образуют одну спокойную вертикальную историю. На мобильном контент ограничен шириной задания, на desktop внутри кабинета скрывается повторная карточка серии из боковой колонки.</p>
+        <h2>Кабинет v7</h2>
+        <p>Паспорт, прогресс, награды и настройки идут последовательно. Серия стала вертикальной карточкой: подпись «дней подряд», полноширинное действие и семь кружков недели.</p>
       </div>
     </header>
     <div class="sg-section__body">
@@ -2791,7 +2804,7 @@
 <footer class="sg-footer" id="footer">
   <div class="sg-footer__inner">
     <div>
-      <strong>Башкирская языковая школа</strong>
+      <strong>Әйтәләй</strong>
       <p>Дизайн-система v1.0 · HTML, CSS и JavaScript без фреймворков. Nunito, иконки 24 px, орнамент — ровно пять мест.</p>
     </div>
     <nav aria-label="Разделы в подвале">

@@ -55,7 +55,7 @@ export function characterStage(id, line = "", options = {}) {
   const state = options.state || "idle";
   const stacked = options.stacked || (options.lang === "ba" && line.length > 12);
   const classes = ["stage", "character-stage", stacked ? "stage--stacked-speech" : "", options.className || ""].filter(Boolean).join(" ");
-  const speechClasses = ["cloud", "speech", options.lang === "ba" ? "cloud--ba" : "", options.right ? "speech--right" : ""].filter(Boolean).join(" ");
+  const speechClasses = ["cloud", "speech", "cloud--right", options.lang === "ba" ? "cloud--ba" : "", options.right ? "speech--right" : ""].filter(Boolean).join(" ");
   const facing = options.facing || character.facing || "right";
   const tts = options.tts ? `<button class="btn btn-ghost btn-icon speech__audio" type="button" data-character-tts="${esc(options.tts)}" aria-label="Прослушать фразу"><svg class="icon" aria-hidden="true"><use href="#i-volume"></use></svg></button>` : "";
   return `<div class="${classes}" data-character-stage data-emotion="${esc(state)}">

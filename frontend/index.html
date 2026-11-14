@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#1176C8">
   <meta name="description" content="Интерактивная школа башкирского языка: карточки, игровые уроки, народные переводы и рейтинги.">
-  <title>Айталай — Башкирская языковая школа</title>
+  <meta name="application-name" content="Әйтәләй">
+  <meta property="og:title" content="Әйтәләй — Башкирская языковая школа">
+  <title>Әйтәләй — Башкирская языковая школа</title>
+  <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%231176C8'/%3E%3Cpath d='M32 10 38 24 52 20 44 32 52 44 38 40 32 54 26 40 12 44 20 32 12 20 26 24Z' fill='%23F2B705'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -53,7 +56,7 @@
     <div class="auth-panel">
       <div class="auth-brand">
         <div class="stage stage--auth"><div class="mascot-crop" style="--mw:240px;--mh:200px"><img src="characters/boy_idle.webp" alt="" width="240" height="240" class="auth-mascot stage__mascot" draggable="false"></div><div class="cloud cloud--ba" lang="ba">Сәләм!</div></div>
-        <h1>Айталай</h1>
+        <h1 lang="ba">Әйтәләй</h1>
         <p lang="ba">Башҡортса — һәйбәт!</p>
       </div>
 
@@ -118,7 +121,7 @@
         <div id="dictionary-results" class="dictionary-results" aria-live="polite"></div>
         <div id="community-library" class="library-shelf">
           <span id="library-streak" hidden>0</span>
-          <div class="library-scene"><div class="mascot-crop mascot-crop--librarian" data-facing="right"><div class="character stage__mascot" data-char="boy" data-state="idle" data-emotion="idle" aria-hidden="true"><img class="character__img" src="characters/boy_idle.webp" width="220" height="220" alt="" draggable="false"></div></div><div class="cloud">Выбери книгу</div></div>
+          <div class="library-scene"><div class="mascot-crop mascot-crop--librarian" data-facing="right"><div class="character stage__mascot" data-char="boy" data-state="idle" data-emotion="happy" aria-hidden="true"><img class="character__img" src="characters/boy_idle.webp" width="220" height="220" alt="" draggable="false"></div></div><div class="cloud cloud--right">Выбери книгу</div></div>
           <div class="bookcase"><div class="book-shelf">
             <button class="book book--blue" type="button" data-community-mode="verify" aria-label="Открыть книгу Проверка" aria-expanded="false"><span class="book__body"><span class="book__bookmark" aria-hidden="true"></span><span class="book__inside" aria-hidden="true"></span><span class="book__front book__cover"><span class="book__spine" aria-hidden="true"></span><span class="book__emboss"><svg class="icon" aria-hidden="true"><use href="#i-stamp"></use></svg></span><strong>Проверка</strong><small>Пять фраз на сегодня</small></span></span></button>
             <button class="book book--green" type="button" data-community-mode="propose" aria-label="Открыть книгу Предложить" aria-expanded="false"><span class="book__body"><span class="book__bookmark" aria-hidden="true"></span><span class="book__inside" aria-hidden="true"></span><span class="book__front book__cover"><span class="book__spine" aria-hidden="true"></span><span class="book__emboss"><svg class="icon" aria-hidden="true"><use href="#i-feather"></use></svg></span><strong>Предложить</strong><small>Добавь свою фразу</small></span></span></button>
@@ -149,7 +152,7 @@
       </section>
 
       <section id="screen-ratings" class="screen screen--ratings" hidden>
-        <div class="screen-heading screen-heading--action"><h2>Рейтинг</h2><button id="rating-list-toggle" class="btn btn-ghost btn-sm" type="button" aria-pressed="false">Список</button></div>
+        <div class="screen-heading"><h2>Рейтинг</h2></div>
         <div id="rating-categories" class="tabs tabs--fill rating-tabs" role="tablist" aria-label="Категория рейтинга"></div>
         <div id="rating-school-mode" class="tabs tabs--fill rating-school-mode" role="group" aria-label="Рейтинг внутри школы" hidden><button class="tab is-active" type="button" data-school-mode="students" aria-pressed="true">Ученики</button><button class="tab" type="button" data-school-mode="classes" aria-pressed="false">Классы</button></div>
         <div id="rating-body" class="rank-list" aria-live="polite"></div>
