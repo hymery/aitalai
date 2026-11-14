@@ -1,1340 +1,1138 @@
-// ==========================================================================
-// БАШҠОРТ ТЕЛЕ — DUOLINGO APP CORE (КУРС, СООБЩЕСТВО, ПРОФИЛЬ)
-// ЧИСТЫЙ ВЕКТОРНЫЙ ДИЗАЙН, БЕЗ СМАЙЛИКОВ И БЕЗ ИИ-МУСОРА
-// ==========================================================================
+import { COURSE_UNITS } from "./course-data.js";
+import {
+  ApiError,
+  API_URL,
+  apiRequest,
+  fetchTelegramToken,
+  getStoredToken,
+  saveToken,
+} from "./api.js";
 
-const MOCK = {
-  user: {
-    name: 'Ильдар Хабиров',
-    school: 'Гимназия №3, Уфа',
-    class_name: '8Б',
-    lang_pair: 'ba-ru',
-    points: 240,
-    level: 3,
-    streak: 7,
-    hearts: 5,
-    accuracy: 94,
-    verified_count: 18
-  },
+const $ = (selector, root = document) => root.querySelector(selector);
+const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
-  unit1: {
-    unit_id: 1,
-    unit_title: "Раздел 1: Первые шаги и Гостеприимство",
-    lessons: [
-      {
-        id: 1,
-        title: "Приветствие и вежливость",
-        desc: "Һаумыһығыҙ, сәләм, рәхмәт",
-        status: "completed",
-        stars: 3,
-        steps: [
-          {
-            type: "word_bank",
-            prompt: "Собери фразу на башкирском: «Привет, дорогой друг!»",
-            target: ["Һаумы,", "ҡәҙерле", "дуҫ!"],
-            bank: ["Һаумы,", "ҡәҙерле", "дуҫ!", "сәй", "юҡ", "исем", "рәхмәт"]
-          },
-          {
-            type: "chat_choice",
-            speaker: "Маскот",
-            speaker_ba: "Һаумыһығыҙ! Хәлдәрегеҙ нисек?",
-            prompt: "Выбери вежливый ответ на вопрос «Как ваши дела?»:",
-            options: [
-              { text: "Рәхмәт, минең хәлдәрем һәйбәт!", is_correct: true },
-              { text: "Мин һыу эсәм.", is_correct: false },
-              { text: "Һау бул!", is_correct: false }
-            ]
-          }
-        ]
-      },
-      {
-        id: 2,
-        title: "Знакомство",
-        desc: "Мин, һин, исем, дуҫ, башҡортса",
-        status: "active",
-        stars: 2,
-        steps: [
-          {
-            type: "fill_blank",
-            prompt: "Вставь пропущенное слово:",
-            sentence_pre: "Мин башҡортса ",
-            sentence_post: ".",
-            correct: "һөйләшәм",
-            options: ["һөйләшәм", "эсәм", "киләм", "алма"],
-            hint: "«Һөйләшәм» означает «говорю» (Мин һөйләшәм = Я говорю)"
-          },
-          {
-            type: "word_bank",
-            prompt: "Собери фразу: «Меня зовут Ильдар»",
-            target: ["Минең", "исемем", "—", "Ильдар"],
-            bank: ["Минең", "исемем", "—", "Ильдар", "һин", "дуҫ", "сәй"]
-          }
-        ]
-      },
-      {
-        id: 3,
-        title: "Башкирское чаепитие",
-        desc: "Сәй, бал, һөт, икмәк, тәмле",
-        status: "open",
-        stars: 0,
-        steps: [
-          {
-            type: "fill_blank",
-            prompt: "Вставь слово по смыслу:",
-            sentence_pre: "Был башҡорт балы бик ",
-            sentence_post: "!",
-            correct: "тәмле",
-            options: ["тәмле", "юҡ", "һаумы", "исем"],
-            hint: "«Тәмле» — вкусный"
-          },
-          {
-            type: "chat_choice",
-            speaker: "Өләсәй",
-            speaker_ba: "Сәй эсәйек, балам! Һөт ҡояйыммы?",
-            prompt: "Бабушка предлагает чай с молоком. Ответь утвердительно:",
-            options: [
-              { text: "Эйе, рәхмәт, һөт ҡойоғоҙ!", is_correct: true },
-              { text: "Юҡ, мин уҡыйым.", is_correct: false },
-              { text: "Һаумыһығыҙ!", is_correct: false }
-            ]
-          }
-        ]
-      }
-    ],
+const RATING_CATEGORIES = [
+  { id: "top", label: "Ученики", endpoint: "/ratings/top" },
+  { id: "schools", label: "Школы", endpoint: "/ratings/schools" },
+  { id: "classes", label: "Классы", endpoint: "/ratings/classes" },
+  { id: "accuracy", label: "Точность", endpoint: "/ratings/accuracy" },
+  { id: "vocabulary", label: "Словарь", endpoint: "/ratings/vocabulary" },
+  { id: "corrections", label: "Исправления", endpoint: "/ratings/corrections" },
+];
 
-    // BOSS STORY QUEST («В гостях у Өләсәй»)
-    final_boss_node: {
-      node_type: "story_exam",
-      quest_title: "В гостях у Өләсәй (Бабушки)",
-      cultural_character: {
-        id: "olasey",
-        name: "Өләсәй (Бабушка Халима)",
-        initial: "Ө",
-        lore_intro: "Хранительница домашнего очага и традиций башкирского гостеприимства."
-      },
-      stages: [
-        {
-          step: 1,
-          mechanic: "chat_choice",
-          story_context: "Маскот заходит в юрту. За низким столиком сидит Өләсәй.",
-          npc_speech_ba: "Һаумы, балам! Әйҙүк, түргә үт! Хәлдәрең нисек?",
-          task_prompt: "Поздоровайся с бабушкой уважительно и ответь, как твои дела:",
-          options: [
-            {
-              text_ba: "Һаумыһығыҙ, өләсәй! Рәхмәт, минең хәлдәрем һәйбәт!",
-              is_correct: true,
-              npc_reaction_ba: "Афарин! Ипле бала икәнең күренеп тора!"
-            },
-            {
-              text_ba: "Һау бул! Мин һыу эсәм.",
-              is_correct: false,
-              error_hint: "«Һау бул» — это «Пока!», а ты только зашел в гости."
-            },
-            {
-              text_ba: "Юҡ, был минең икмәк түгел.",
-              is_correct: false,
-              error_hint: "Бабушка спросила «Как дела?», а не про хлеб."
-            }
-          ]
-        },
-        {
-          step: 2,
-          mechanic: "interactive_table",
-          story_context: "Өләсәй наливает чай из самовара и просит помочь накрыть на стол.",
-          npc_speech_ba: "Кил әле, балам. Өҫтәлгә башҡорт балы, һөт һәм йылы икмәк ҡуй!",
-          task_prompt: "Положи на стол ровно 3 продукта, которые назвала Өләсәй:",
-          required_item_ids: ["honey", "milk", "bread"],
-          table_items: [
-            { id: "honey", label_ba: "Бал", label_ru: "Мёд" },
-            { id: "milk", label_ba: "Һөт", label_ru: "Молоко" },
-            { id: "bread", label_ba: "Икмәк", label_ru: "Хлеб" },
-            { id: "water", label_ba: "Һыу", label_ru: "Вода" },
-            { id: "apple", label_ba: "Алма", label_ru: "Яблоко" },
-            { id: "meat", label_ba: "Ит", label_ru: "Мясо" }
-          ]
-        },
-        {
-          step: 3,
-          mechanic: "grammar_trap",
-          story_context: "Өләсәй угощает тебя и спрашивает, нравится ли тебе угощение.",
-          npc_speech_ba: "Сәй эс, балам! Башҡорт балы бик тәмлеме?",
-          task_prompt: "Вставь правильное слово по смыслу и грамматике в ответ:",
-          sentence_start: "Эйе, рәхмәт! Был бал бик ",
-          sentence_end: ", мин йылы сәй яратам!",
-          correct_option: "тәмле",
-          options: ["тәмле", "һаумы", "исем", "юҡ"],
-          grammar_explanation: "«Тәмле» — вкусный. Подтверждаем: «бик тәмле»."
-        },
-        {
-          step: 4,
-          mechanic: "boss_word_bank",
-          story_context: "Чаепитие подходит к концу. Поблагодари бабушку на чистом башкирском языке:",
-          task_prompt: "Собери фразу: «Спасибо, бабушка! Я пью вкусный чай с молоком»",
-          correct_sentence_ba: ["Рәхмәт,", "өләсәй!", "Мин", "һөтлө", "тәмле", "сәй", "эсәм"],
-          distractor_words_ba: ["һыу", "юҡ", "һин", "ашайым"]
-        },
-        {
-          step: 5,
-          mechanic: "reward_screen",
-          final_praise_ba: "Афарин! Һин ысын башҡортса һөйләшәһең! Киләһе осрашҡанға тиклем!",
-          final_praise_ru: "Молодец! Ты говоришь прямо как знаток башкирского языка! До встречи!",
-          reward_trophy: {
-            trophy_id: "burzyan_honey",
-            title: "Бочонок бурзянского мёда",
-            cultural_fact: "Башкирский бортевой мёд собирают дикие тёмные лесные пчёлы (Бөрйән бал ҡорто), занесённые в Красную книгу."
-          }
-        }
-      ]
-    }
-  },
+const RATING_PERIODS = [
+  { id: "day", label: "День" },
+  { id: "week", label: "Неделя" },
+  { id: "month", label: "Месяц" },
+  { id: "year", label: "Год" },
+  { id: "all", label: "Всё время" },
+];
 
-  community_fragments: [
-    {
-      id: 1,
-      text_ba: "Һаумыһығыҙ, ҡәҙерле ҡунаҡтар!",
-      translation: "Здравствуйте, дорогие гости!",
-      source: "М. Кәрим, «Өҙөлгән ҡағылдағы һәм хикәйәләр», Глава 2",
-      confirmed: 8,
-      is_correct: true
-    },
-    {
-      id: 2,
-      text_ba: "Башҡортостан — матур һәм бай ил.",
-      translation: "Башкортостан — очень холодная страна.",
-      correct_translation: "Башкортостан — прекрасная и богатая земля.",
-      source: "З. Биишева, «Кәмһетелгән йондоҙ», Глава 1",
-      confirmed: 2,
-      is_correct: false
-    },
-    {
-      id: 3,
-      text_ba: "Мин мәктәптә яратып уҡыйм.",
-      translation: "Я с удовольствием учусь в школе.",
-      source: "Башҡорт теле дәреслеге, Урок 4",
-      confirmed: 14,
-      is_correct: true
-    },
-    {
-      id: 4,
-      text_ba: "Урманда һандуғастар һайрай.",
-      translation: "В лесу поют соловьи.",
-      source: "Р. Нигмәтуллин, «Йәшлек моңо», Глава 5",
-      confirmed: 11,
-      is_correct: true
-    },
-    {
-      id: 5,
-      text_ba: "Әсәйем тәмле сәй ҡайната.",
-      translation: "Мама жарит мясо на огне.",
-      correct_translation: "Мама заваривает вкусный чай.",
-      source: "Башҡорт халыҡ ижады, Мәҡәлдәр",
-      confirmed: 1,
-      is_correct: false
-    }
-  ],
-
-  user_submissions: [
-    {
-      ba: "Сәй эсәйек, дуҫтар!",
-      ru: "Давайте выпьем чаю, друзья!",
-      source: "Разговорная речь",
-      status: "На проверке"
-    },
-    {
-      ba: "Тыуған ил — алтын бишек.",
-      ru: "Родная земля — золотая колыбель.",
-      source: "Пословица",
-      status: "Подтверждено (+20 XP)"
-    }
-  ],
-
-  leaderboard: {
-    students: [
-      { rank: 1, name: "Айгуль Юсупова", meta: "Лицей №1, Уфа", points: 1520 },
-      { rank: 2, name: "Тимур Валеев", meta: "Гимназия №3, Уфа", points: 1340 },
-      { rank: 3, name: "Алсу Фаткуллина", meta: "Школа №5, Стерлитамак", points: 1200 },
-      { rank: 4, name: "Ильдар Хабиров", meta: "Гимназия №3, Уфа (Вы)", points: 240, is_me: true },
-      { rank: 5, name: "Динара Ишмуратова", meta: "Школа №12, Нефтекамск", points: 210 },
-      { rank: 6, name: "Рустам Гареев", meta: "Лицей №2, Салават", points: 185 }
-    ],
-    schools: [
-      { rank: 1, name: "Лицей №1, Уфа", meta: "124 ученика", points: 8420 },
-      { rank: 2, name: "Гимназия №3, Уфа", meta: "98 учеников (Ваша школа)", points: 7890, is_me: true },
-      { rank: 3, name: "Школа №5, Стерлитамак", meta: "76 учеников", points: 6210 },
-      { rank: 4, name: "Школа №12, Нефтекамск", meta: "54 ученика", points: 4320 }
-    ],
-    classes: [
-      { rank: 1, name: "9А класс", meta: "Лицей №1, Уфа", points: 2140 },
-      { rank: 2, name: "8Б класс", meta: "Гимназия №3, Уфа (Ваш класс)", points: 1950, is_me: true },
-      { rank: 3, name: "10В класс", meta: "Школа №5, Стерлитамак", points: 1780 }
-    ]
-  },
-
-  badges: [
-    { id: "traditions", icon: "kurai", colorClass: "gold", title: "Знаток традиций", desc: "Пройден контрольный квест у Өләсәй в юрте", status: "Получено" },
-    { id: "steps", icon: "i-star", colorClass: "blue", title: "Первые шаги", desc: "Завершен первый урок курса", status: "Получено" },
-    { id: "keeper", icon: "i-check", colorClass: "green", title: "Хранитель языка", desc: "Проверено 10 фраз в Китапхане переводов", status: "Получено" },
-    { id: "lexicographer", icon: "i-pencil", colorClass: "gold", title: "Лексикограф", desc: "Предложен новый перевод в общую базу", status: "Получено" }
-  ]
-};
-
-// ==========================================================================
-// СОСТОЯНИЕ ПРИЛОЖЕНИЯ
-// ==========================================================================
+const BADGE_CATALOG = [
+  { id: "first_answer", title: "Первый голос", desc: "Оценён первый перевод", icon: "i-check" },
+  { id: "corrector", title: "Внимательный редактор", desc: "Предложено первое исправление", icon: "i-pencil" },
+  { id: "hundred_points", title: "Сотня XP", desc: "Набрано 100 очков опыта", icon: "kurai" },
+  { id: "ten_answers", title: "Хранитель языка", desc: "Отправлено 10 оценок переводов", icon: "i-shield" },
+];
 
 const State = {
-  activeTab: 'course',
-
-  // Обычный урок
+  user: null,
+  activeTab: "course",
+  progress: new Set(),
+  currentUnit: null,
   currentLesson: null,
   currentStepIndex: 0,
-  lessonPhase: 'answering', // answering | feedback
+  lessonPhase: "answering",
   selectedAnswer: null,
   wordBankPlaced: [],
-
-  // Boss Quest
-  currentBossStageIndex: 0,
-  bossPhase: 'answering', // answering | feedback
-  bossSelectedItems: new Set(),
-  bossChoiceSelected: null,
-  bossWordBankPlaced: [],
-
-  // Сообщество (проверка)
-  commIndex: 0,
-  commXpGained: 0,
-
-  // Лидерборд
-  activeBoard: 'students'
+  flashIndex: 0,
+  flashFlipped: false,
+  pairSelection: { ba: null, ru: null },
+  matchedPairs: new Set(),
+  hearts: 5,
+  completing: false,
+  bossUnit: null,
+  bossStageIndex: 0,
+  bossPhase: "answering",
+  bossChoice: null,
+  bossItems: new Set(),
+  bossWords: [],
+  dailyTask: null,
+  dailyMode: "actions",
+  dailyResult: null,
+  dailyCorrection: "",
+  dailySubmitting: false,
+  ratingCategory: "top",
+  ratingPeriod: "all",
+  ratingRequest: 0,
+  teacherReport: null,
+  moderation: [],
+  lastFocused: null,
 };
 
-function showToast(text) {
-  const toast = document.getElementById('toast');
-  const toastText = document.getElementById('toast-text');
-  if (!toast || !toastText) return;
-  toastText.textContent = text;
-  toast.classList.add('is-show');
-  setTimeout(() => toast.classList.remove('is-show'), 2200);
+let toastTimer;
+
+function esc(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function formatNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number.toLocaleString("ru-RU") : "0";
+}
+
+function initials(name) {
+  return String(name || "У")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0] || "")
+    .join("")
+    .toUpperCase();
+}
+
+function icon(name, className = "icon") {
+  return `<svg class="${className}" aria-hidden="true"><use href="#${name}"></use></svg>`;
+}
+
+function showToast(message) {
+  const toast = $("#toast");
+  $("#toast-text").textContent = message;
+  toast.classList.remove("is-visible");
+  void toast.offsetWidth;
+  toast.classList.add("is-visible");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove("is-visible"), 2600);
+}
+
+function loadingBlock(text) {
+  return `<div class="state-block"><span class="spinner" aria-hidden="true"></span><span>${esc(text)}</span></div>`;
+}
+
+function emptyBlock(title, text = "") {
+  return `<div class="empty-state">${icon("i-book")}<strong>${esc(title)}</strong>${text ? `<p>${esc(text)}</p>` : ""}</div>`;
+}
+
+function renderError(container, error, retry) {
+  container.innerHTML = `<div class="error-state"><strong>Не получилось загрузить данные</strong><p>${esc(error.message || error)}</p><button class="btn btn-ghost" type="button">Повторить</button></div>`;
+  $("button", container).addEventListener("click", retry);
+}
+
+function setBusy(button, busy, busyText = "Отправляем…") {
+  if (!button) return;
+  if (busy) {
+    if (button.dataset.originalHtml === undefined) {
+      button.dataset.originalHtml = button.innerHTML;
+    }
+    button.textContent = busyText;
+    button.disabled = true;
+  } else {
+    if (button.dataset.originalHtml !== undefined) {
+      button.innerHTML = button.dataset.originalHtml;
+      delete button.dataset.originalHtml;
+    }
+    button.disabled = false;
+  }
 }
 
 function updateTopBar() {
-  const streakEl = document.getElementById('top-streak');
-  const pointsEl = document.getElementById('top-points');
-  const heartsEl = document.getElementById('top-hearts');
-  if (streakEl) streakEl.textContent = MOCK.user.streak;
-  if (pointsEl) pointsEl.textContent = MOCK.user.points;
-  if (heartsEl) heartsEl.textContent = MOCK.user.hearts;
+  if (!State.user) return;
+  $("#top-streak").textContent = formatNumber(State.user.streak_days);
+  $("#top-points").textContent = formatNumber(State.user.points);
+  $("#top-hearts").textContent = State.hearts;
+  $("#lesson-hearts").textContent = State.hearts;
+  $("#top-avatar").textContent = initials(State.user.full_name);
 }
 
-// ==========================================================================
-// НАВИГАЦИЯ МЕЖДУ 3 ТАБАМИ
-// ==========================================================================
-
-function switchTab(tabName) {
-  State.activeTab = tabName;
-
-  document.querySelectorAll('.duo-nav-tab').forEach(tab => {
-    tab.classList.toggle('is-active', tab.dataset.tab === tabName);
-  });
-
-  const screens = {
-    course: document.getElementById('screen-course'),
-    community: document.getElementById('screen-community'),
-    profile: document.getElementById('screen-profile')
-  };
-
-  Object.entries(screens).forEach(([key, el]) => {
-    if (el) el.hidden = (key !== tabName);
-  });
-
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-
-  if (tabName === 'course') renderCourseTree();
-  if (tabName === 'community') resetCommunityToHub();
-  if (tabName === 'profile') renderProfile();
+function setAuthMode(mode) {
+  const login = mode === "login";
+  $("#login-form").hidden = !login;
+  $("#register-form").hidden = login;
+  $("#auth-show-login").classList.toggle("is-active", login);
+  $("#auth-show-register").classList.toggle("is-active", !login);
+  $("#auth-show-login").setAttribute("aria-selected", String(login));
+  $("#auth-show-register").setAttribute("aria-selected", String(!login));
+  $("#auth-status").textContent = "";
 }
 
-function initNavigation() {
-  document.querySelectorAll('.duo-nav-tab').forEach(tab => {
-    tab.addEventListener('click', (e) => {
-      e.preventDefault();
-      switchTab(tab.dataset.tab);
-      location.hash = tab.dataset.tab;
+function showAuth(message = "") {
+  $("#app-shell").hidden = true;
+  $("#auth-screen").hidden = false;
+  $("#auth-status").textContent = message;
+  State.user = null;
+  State.progress.clear();
+}
+
+async function finishAuth(payload) {
+  saveToken(payload.access_token);
+  State.user = payload.user;
+  const progress = await apiRequest("/course/progress");
+  State.progress = new Set(
+    progress.map((item) => `${item.unit_id}:${item.lesson_id}`)
+  );
+  $("#auth-screen").hidden = true;
+  $("#app-shell").hidden = false;
+  applyRoleLayout();
+  updateTopBar();
+  renderCourse();
+  renderRatingControls();
+  const requested = location.hash.slice(1);
+  switchTab(["course", "community", "ratings", "cabinet", "profile"].includes(requested) ? requested : "course");
+}
+
+async function login(email, password, button) {
+  setBusy(button, true, "Входим…");
+  $("#auth-status").textContent = "";
+  try {
+    const payload = await apiRequest("/auth/login", {
+      method: "POST",
+      body: { email, password },
+      token: "",
     });
-  });
-
-  const hash = location.hash.replace('#', '');
-  if (['course', 'community', 'profile'].includes(hash)) {
-    switchTab(hash);
-  } else {
-    switchTab('course');
+    await finishAuth(payload);
+  } catch (error) {
+    saveToken("");
+    $("#auth-status").textContent = error.message;
+  } finally {
+    setBusy(button, false);
   }
 }
 
-// ==========================================================================
-// КАРТА УРОКОВ (КУРС DUOLINGO)
-// ==========================================================================
+async function register(form) {
+  const button = $("button[type='submit']", form);
+  setBusy(button, true, "Создаём…");
+  const data = new FormData(form);
+  const payload = Object.fromEntries(data.entries());
+  $("#auth-status").textContent = "";
+  try {
+    const response = await apiRequest("/auth/register", {
+      method: "POST",
+      body: { ...payload, lang_pair: "ba-ru" },
+      token: "",
+    });
+    await finishAuth(response);
+    showToast("Профиль создан. Начнём с карточек!");
+  } catch (error) {
+    saveToken("");
+    State.user = null;
+    $("#auth-status").textContent = error.message;
+  } finally {
+    setBusy(button, false);
+  }
+}
 
-function renderCourseTree() {
-  const tree = document.getElementById('path-tree');
-  if (!tree) return;
+function applyRoleLayout() {
+  const role = State.user.role;
+  const canTeach = ["teacher", "expert", "admin"].includes(role);
+  const canModerate = ["expert", "admin"].includes(role);
+  $("#cabinet-nav").hidden = !(canTeach || canModerate);
+  $("#teacher-panel").hidden = !canTeach;
+  $("#moderation-panel").hidden = !canModerate;
+  $("#cabinet-subtitle").textContent = canModerate
+    ? "Отчёты, экспертная модерация и подтверждение переводов."
+    : "Сводная успеваемость вашего класса.";
+  $(".duo-bottom-nav").style.setProperty("--nav-count", canTeach || canModerate ? 5 : 4);
+  $("#teacher-school").value = State.user.school || "";
+  $("#teacher-class").value = State.user.class_name || (State.user.email === "teacher@example.com" ? "7А" : "");
+}
 
-  const positions = ['pos-c', 'pos-l1', 'pos-c'];
-  let html = '';
+function switchTab(tab) {
+  if (tab === "cabinet" && $("#cabinet-nav").hidden) tab = "course";
+  State.activeTab = tab;
+  $$(".duo-nav-tab").forEach((link) => {
+    const active = link.dataset.tab === tab;
+    link.classList.toggle("is-active", active);
+    if (active) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  });
+  ["course", "community", "ratings", "cabinet", "profile"].forEach((name) => {
+    $(`#screen-${name}`).hidden = name !== tab;
+  });
+  if (location.hash !== `#${tab}`) history.replaceState(null, "", `#${tab}`);
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  if (tab === "course") renderCourse();
+  if (tab === "community" && !State.dailyTask) loadDailyTask();
+  if (tab === "ratings") loadRatings();
+  if (tab === "profile") renderProfile();
+  if (tab === "cabinet" && !$("#moderation-panel").hidden) loadModeration();
+}
 
-  MOCK.unit1.lessons.forEach((lesson, idx) => {
-    const pos = positions[idx % positions.length];
-    const isDone = lesson.status === 'completed';
-    const isActive = lesson.status === 'active';
-    const isLocked = lesson.status === 'locked';
+// ---------------------------------------------------------------------------
+// Карта курса и прогресс
+// ---------------------------------------------------------------------------
 
-    const btnClass = isDone ? 'node-btn--done' : (isActive ? 'node-btn--active' : 'node-btn--locked');
-    const starsHtml = isDone ? `
-      <div class="node-stars">
-        <svg class="icon icon-sm" style="color:var(--gold-500)"><use href="#i-star"></use></svg>
-        <svg class="icon icon-sm" style="color:var(--gold-500)"><use href="#i-star"></use></svg>
-        <svg class="icon icon-sm" style="color:var(--gold-500)"><use href="#i-star"></use></svg>
-      </div>` : '';
+function progressKey(unitId, lessonId) {
+  return `${unitId}:${lessonId}`;
+}
 
-    // Пузырь подсказки над активным уроком (без мультяшных картинок)
-    const guideHtml = isActive ? `
-      <div class="node-guide" style="left:50%;transform:translateX(-50%)">
-        <div class="node-guide__bubble">Башлайбыҙмы? (Начнём?)</div>
-      </div>` : '';
+function isComplete(unitId, lessonId) {
+  return State.progress.has(progressKey(unitId, lessonId));
+}
 
-    html += `
-      <div class="path-row ${pos}">
+function isUnitUnlocked(unitIndex) {
+  if (unitIndex === 0) return true;
+  const previous = COURSE_UNITS[unitIndex - 1];
+  return isComplete(previous.unit_id, previous.final_boss_node.lesson_id);
+}
+
+function isLessonUnlocked(unit, lessonIndex) {
+  const unitIndex = COURSE_UNITS.findIndex((item) => item.unit_id === unit.unit_id);
+  if (!isUnitUnlocked(unitIndex)) return false;
+  if (lessonIndex === 0) return true;
+  return isComplete(unit.unit_id, unit.lessons[lessonIndex - 1].lesson_id);
+}
+
+function isBossUnlocked(unit) {
+  const unitIndex = COURSE_UNITS.findIndex((item) => item.unit_id === unit.unit_id);
+  return isUnitUnlocked(unitIndex) && unit.lessons.every((lesson) => isComplete(unit.unit_id, lesson.lesson_id));
+}
+
+function renderCourse() {
+  const container = $("#course-content");
+  container.innerHTML = COURSE_UNITS.map((unit, unitIndex) => {
+    const unitUnlocked = isUnitUnlocked(unitIndex);
+    const completedLessons = unit.lessons.filter((lesson) => isComplete(unit.unit_id, lesson.lesson_id)).length;
+    const bossDone = isComplete(unit.unit_id, unit.final_boss_node.lesson_id);
+    const positions = ["pos-c", "pos-l1", "pos-r1"];
+    const lessonsHtml = unit.lessons.map((lesson, lessonIndex) => {
+      const done = isComplete(unit.unit_id, lesson.lesson_id);
+      const unlocked = isLessonUnlocked(unit, lessonIndex);
+      const active = unlocked && !done;
+      const className = done ? "node-btn--done" : active ? "node-btn--active" : "node-btn--locked";
+      const lessonIcon = done ? "i-check" : !unlocked ? "i-lock" : lesson.lesson_type === "flashcards" ? "i-book" : "i-star";
+      return `<div class="path-row ${positions[lessonIndex % positions.length]}">
         <div class="node-wrap">
-          ${guideHtml}
-          ${starsHtml}
-          <button class="node-btn ${btnClass}" type="button" data-lesson-id="${lesson.id}" ${isLocked ? 'disabled' : ''}>
-            ${isDone ? '<svg class="icon"><use href="#i-check"></use></svg>' : '<svg class="icon"><use href="#i-star"></use></svg>'}
-          </button>
-          <span class="node-label">Урок ${lesson.id}</span>
+          ${active ? `<div class="node-guide"><div class="node-guide__bubble">${lesson.lesson_type === "flashcards" ? "Сначала новые слова" : "Башлайбыҙмы?"}</div></div>` : ""}
+          <button class="node-btn ${className}" type="button" data-lesson-unit="${unit.unit_id}" data-lesson-id="${lesson.lesson_id}" ${unlocked ? "" : "disabled"} aria-label="${esc(lesson.lesson_title)}">${icon(lessonIcon)}</button>
+          <span class="node-label">${lesson.lesson_id}. ${esc(lesson.lesson_title)}</span>
+          <span class="node-type">${lesson.lesson_type === "flashcards" ? "Карточки" : "Практика"}</span>
         </div>
+      </div>`;
+    }).join("");
+    const bossUnlocked = isBossUnlocked(unit);
+    const bossClass = bossDone ? "node-btn--done" : bossUnlocked ? "node-btn--chest node-btn--boss" : "node-btn--locked";
+    return `<section class="course-unit ${unitUnlocked ? "" : "is-locked"}">
+      <div class="unit-banner unit-banner--${unit.accent}">
+        <div><div class="unit-banner__num">РАЗДЕЛ ${unit.unit_id}</div><div class="unit-banner__title">${esc(unit.unit_title)}</div><div class="unit-banner__desc">${esc(unit.unit_subtitle)} · ${completedLessons}/${unit.lessons.length} уроков</div></div>
+        <button class="unit-banner__btn" type="button" data-unit-guide="${unit.unit_id}" ${unitUnlocked ? "" : "disabled"} aria-label="Открыть карточки раздела">${icon(unitUnlocked ? "i-book" : "i-lock")}</button>
       </div>
-    `;
-  });
-
-  // Финальный Большой Круг — Boss Quest
-  html += `
-    <div class="path-row pos-c" style="margin-top:var(--s4)">
-      <div class="node-wrap">
-        <div class="node-stars">
-          <svg class="icon icon-sm" style="color:var(--gold-500)"><use href="#i-crown"></use></svg>
-        </div>
-        <button class="node-btn node-btn--active" id="btn-start-boss" type="button" style="width:84px;height:84px;border-color:var(--gold-600);background:var(--gold-500);color:var(--ink-900)">
-          <svg class="icon" style="width:38px;height:38px"><use href="#i-crown"></use></svg>
-        </button>
-        <span class="node-label" style="font-weight:900;color:var(--gold-700)">Контрольная: Өләсәй</span>
+      <div class="path-tree">${lessonsHtml}
+        <div class="path-row pos-c boss-row"><div class="node-wrap">
+          <button class="node-btn ${bossClass}" type="button" data-boss-unit="${unit.unit_id}" ${bossUnlocked || bossDone ? "" : "disabled"} aria-label="${esc(unit.final_boss_node.quest_title)}">${icon(bossDone ? "i-check" : bossUnlocked ? "i-crown" : "i-lock")}</button>
+          <span class="node-label boss-label">${esc(unit.final_boss_node.quest_title)}</span>
+          <span class="node-type">${bossDone ? "Пройдено" : "Финальный квест"}</span>
+        </div></div>
       </div>
-    </div>
-  `;
+    </section>`;
+  }).join("");
 
-  tree.innerHTML = html;
-
-  tree.querySelectorAll('[data-lesson-id]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const lessonId = parseInt(btn.dataset.lessonId, 10);
-      startLesson(lessonId);
-    });
+  $$('[data-lesson-unit]', container).forEach((button) => {
+    button.addEventListener("click", () => startLesson(Number(button.dataset.lessonUnit), Number(button.dataset.lessonId)));
   });
-
-  const bossBtn = document.getElementById('btn-start-boss');
-  if (bossBtn) {
-    bossBtn.addEventListener('click', startBossQuest);
-  }
+  $$('[data-boss-unit]', container).forEach((button) => {
+    button.addEventListener("click", () => startBoss(Number(button.dataset.bossUnit)));
+  });
+  $$('[data-unit-guide]', container).forEach((button) => {
+    button.addEventListener("click", () => startLesson(Number(button.dataset.unitGuide), 1));
+  });
 }
 
-// ==========================================================================
-// ОБЫЧНЫЙ УРОК: БЕЗ ГЛЮКОВ И БЕЗ БЛОКИРОВОК КНОПКИ «ПРОДОЛЖИТЬ»
-// ==========================================================================
-
-function startLesson(lessonId) {
-  const lesson = MOCK.unit1.lessons.find(l => l.id === lessonId);
-  if (!lesson) return;
-
-  State.currentLesson = lesson;
+function startLesson(unitId, lessonId) {
+  const unit = COURSE_UNITS.find((item) => item.unit_id === unitId);
+  const lessonIndex = unit?.lessons.findIndex((item) => item.lesson_id === lessonId) ?? -1;
+  if (!unit || lessonIndex < 0 || !isLessonUnlocked(unit, lessonIndex)) return;
+  State.currentUnit = unit;
+  State.currentLesson = unit.lessons[lessonIndex];
   State.currentStepIndex = 0;
-  State.lessonPhase = 'answering';
-  State.selectedAnswer = null;
-  State.wordBankPlaced = [];
-
-  const modal = document.getElementById('modal-lesson');
-  if (modal) modal.hidden = false;
-
-  renderLessonStep();
+  State.lessonPhase = "answering";
+  State.flashIndex = 0;
+  State.flashFlipped = false;
+  State.hearts = 5;
+  State.completing = false;
+  State.lastFocused = document.activeElement;
+  $("#modal-lesson").hidden = false;
+  document.body.classList.add("modal-open");
+  updateTopBar();
+  renderLesson();
+  $("#lesson-close").focus();
 }
 
 function closeLesson() {
-  const modal = document.getElementById('modal-lesson');
-  if (modal) modal.hidden = true;
+  if (State.completing) return;
+  $("#modal-lesson").hidden = true;
+  document.body.classList.remove("modal-open");
   State.currentLesson = null;
+  State.lastFocused?.focus();
 }
 
-function renderLessonStep() {
+function speakText(text) {
+  if (!("speechSynthesis" in window)) {
+    showToast("Озвучивание не поддерживается этим браузером");
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  const voices = window.speechSynthesis.getVoices();
+  utterance.voice = voices.find((voice) => voice.lang.toLowerCase().startsWith("ba")) || voices.find((voice) => voice.lang.toLowerCase().startsWith("ru")) || null;
+  utterance.lang = utterance.voice?.lang || "ba-RU";
+  utterance.rate = 0.82;
+  window.speechSynthesis.speak(utterance);
+}
+
+function renderFlashcard() {
+  const lesson = State.currentLesson;
+  const card = lesson.cards[State.flashIndex];
+  const container = $("#lesson-step-container");
+  $("#lesson-kind").textContent = "Карточки · без ошибок и жизней";
+  $("#lesson-modal-title").textContent = lesson.lesson_title;
+  $("#lesson-instruction").textContent = lesson.instruction;
+  $("#lesson-hearts-wrap").hidden = true;
+  $("#lesson-feedback-box").hidden = true;
+  $("#lesson-progress-bar").style.setProperty("--progress", `${((State.flashIndex + 1) / lesson.cards.length) * 100}%`);
+  const action = $("#lesson-action-btn");
+  action.disabled = false;
+  action.className = "btn btn-primary btn-lg btn-block";
+  action.textContent = State.flashIndex === lesson.cards.length - 1 ? "Завершить карточки · +10 XP" : "Следующая карточка →";
+  container.innerHTML = `<div class="flashcard-counter">${State.flashIndex + 1} / ${lesson.cards.length}</div>
+    <button class="flashcard ${State.flashFlipped ? "is-flipped" : ""}" id="flashcard-flip" type="button" aria-label="Перевернуть карточку">
+      <span class="flashcard-side flashcard-front"><span class="flashcard-lang">БАШҠОРТСА</span><strong>${esc(card.ba)}</strong><span class="flashcard-hint">Нажми, чтобы увидеть перевод</span></span>
+      <span class="flashcard-side flashcard-back"><span class="flashcard-lang">РУССКИЙ</span><strong>${esc(card.ru)}</strong><span class="flashcard-hint">Нажми, чтобы вернуться</span></span>
+    </button>
+    <button class="audio-button" id="flashcard-audio" type="button">${icon("i-volume", "icon icon-sm")}Прослушать башкирское слово</button>
+    <div class="flashcard-example"><span>Пример</span><strong>${esc(card.example_ba)}</strong><p>${esc(card.example_ru)}</p></div>
+    <button class="btn btn-ghost btn-block" id="flashcard-prev" type="button" ${State.flashIndex === 0 ? "disabled" : ""}>← Предыдущая карточка</button>`;
+  $("#flashcard-flip").addEventListener("click", () => {
+    State.flashFlipped = !State.flashFlipped;
+    renderFlashcard();
+    $("#flashcard-flip").focus();
+  });
+  $("#flashcard-audio").addEventListener("click", () => speakText(card.audio_tts || card.ba));
+  $("#flashcard-prev").addEventListener("click", () => {
+    if (State.flashIndex > 0) {
+      State.flashIndex -= 1;
+      State.flashFlipped = false;
+      renderFlashcard();
+    }
+  });
+}
+
+function shuffled(items, salt = 0) {
+  return items
+    .map((item, index) => ({ item, order: ((index + 1) * 37 + salt * 17) % 101 }))
+    .sort((a, b) => a.order - b.order)
+    .map(({ item }) => item);
+}
+
+function renderLesson() {
+  if (State.currentLesson.lesson_type === "flashcards") {
+    renderFlashcard();
+    return;
+  }
   const lesson = State.currentLesson;
   const step = lesson.steps[State.currentStepIndex];
-  const container = document.getElementById('lesson-step-container');
-  const progressBar = document.getElementById('lesson-progress-bar');
-  const actionBtn = document.getElementById('lesson-action-btn');
-  const feedbackBox = document.getElementById('lesson-feedback-box');
-
-  if (!step || !container) return;
-
-  // Сброс фазы
-  State.lessonPhase = 'answering';
+  State.lessonPhase = "answering";
   State.selectedAnswer = null;
   State.wordBankPlaced = [];
-
-  // Сброс кнопки и фидбека
-  if (feedbackBox) feedbackBox.hidden = true;
-  if (actionBtn) {
-    actionBtn.className = 'btn btn-primary btn-lg btn-block';
-    actionBtn.textContent = 'Проверить';
-    actionBtn.disabled = true;
-  }
-
-  // Прогресс
-  const progressPct = Math.round(((State.currentStepIndex + 1) / lesson.steps.length) * 100);
-  if (progressBar) progressBar.style.setProperty('--progress', `${progressPct}%`);
-
-  if (step.type === 'word_bank') {
-    container.innerHTML = `
-      <h3 style="font-size:18px;margin-bottom:var(--s2)">Собери предложение</h3>
-      <p class="t-15 muted" style="margin-bottom:var(--s3)">${step.prompt}</p>
-
-      <div class="word-slot" id="lesson-word-slot"></div>
-
-      <div class="word-bank" id="lesson-word-bank">
-        ${step.bank.map(w => `<button type="button" class="word-chip" data-word="${w}">${w}</button>`).join('')}
-      </div>
-    `;
-
-    const bankEl = document.getElementById('lesson-word-bank');
-    const slotEl = document.getElementById('lesson-word-slot');
-
-    bankEl.querySelectorAll('.word-chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        if (State.lessonPhase !== 'answering') return;
-        const word = chip.dataset.word;
-        State.wordBankPlaced.push(word);
-        chip.classList.add('is-used');
-        updateWordSlot(slotEl, bankEl);
-        actionBtn.disabled = State.wordBankPlaced.length === 0;
-      });
-    });
-
-  } else if (step.type === 'fill_blank') {
-    container.innerHTML = `
-      <h3 style="font-size:18px;margin-bottom:var(--s2)">Заполни пропуск</h3>
-      <p class="t-15 muted" style="margin-bottom:var(--s3)">${step.prompt}</p>
-
-      <div class="workout-card" style="font-size:20px;font-weight:800;text-align:center;padding:24px">
-        <span>${step.sentence_pre}</span>
-        <span id="blank-placeholder" style="display:inline-block;min-width:70px;border-bottom:3px solid var(--blue-500);color:var(--blue-600)">___</span>
-        <span>${step.sentence_post}</span>
-      </div>
-
-      <div class="choice-list" id="lesson-choice-list">
-        ${step.options.map(opt => `
-          <button type="button" class="choice-btn" data-value="${opt}">
-            <span style="width:24px;height:24px;border-radius:50%;border:2px solid var(--line-strong);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900">○</span>
-            <span>${opt}</span>
-          </button>
-        `).join('')}
-      </div>
-    `;
-
-    const choiceList = document.getElementById('lesson-choice-list');
-    const placeholder = document.getElementById('blank-placeholder');
-    choiceList.querySelectorAll('.choice-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (State.lessonPhase !== 'answering') return;
-        choiceList.querySelectorAll('.choice-btn').forEach(b => b.classList.remove('is-selected'));
-        btn.classList.add('is-selected');
-        State.selectedAnswer = btn.dataset.value;
-        placeholder.textContent = btn.dataset.value;
-        actionBtn.disabled = false;
-      });
-    });
-
-  } else if (step.type === 'chat_choice') {
-    container.innerHTML = `
-      <h3 style="font-size:18px;margin-bottom:var(--s3)">Мини-диалог</h3>
-
-      <div class="story-dialog">
-        <div class="avatar avatar--blue" style="width:48px;height:48px;font-weight:900;font-size:16px;flex-shrink:0">М</div>
-        <div class="story-bubble">
-          <div class="story-bubble__meta">${step.speaker}:</div>
-          ${step.speaker_ba}
-        </div>
-      </div>
-
-      <p class="t-14 muted" style="margin-bottom:var(--s2)">${step.prompt}</p>
-
-      <div class="choice-list" id="lesson-chat-choices">
-        ${step.options.map((opt, i) => `
-          <button type="button" class="choice-btn" data-index="${i}">
-            <span style="font-weight:900;color:var(--blue-500)">${i + 1}.</span>
-            <span>${opt.text}</span>
-          </button>
-        `).join('')}
-      </div>
-    `;
-
-    const choiceList = document.getElementById('lesson-chat-choices');
-    choiceList.querySelectorAll('.choice-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (State.lessonPhase !== 'answering') return;
-        choiceList.querySelectorAll('.choice-btn').forEach(b => b.classList.remove('is-selected'));
-        btn.classList.add('is-selected');
-        const optIndex = parseInt(btn.dataset.index, 10);
-        State.selectedAnswer = step.options[optIndex];
-        actionBtn.disabled = false;
-      });
-    });
-  }
+  State.pairSelection = { ba: null, ru: null };
+  State.matchedPairs = new Set();
+  $("#lesson-kind").textContent = `Практика · шаг ${State.currentStepIndex + 1}/${lesson.steps.length}`;
+  $("#lesson-modal-title").textContent = lesson.lesson_title;
+  $("#lesson-instruction").textContent = lesson.instruction;
+  $("#lesson-hearts-wrap").hidden = false;
+  $("#lesson-feedback-box").hidden = true;
+  $("#lesson-progress-bar").style.setProperty("--progress", `${((State.currentStepIndex + 1) / lesson.steps.length) * 100}%`);
+  const action = $("#lesson-action-btn");
+  action.disabled = true;
+  action.className = "btn btn-primary btn-lg btn-block";
+  action.textContent = "Проверить";
+  if (step.type === "word_bank") renderWordBank(step);
+  if (step.type === "fill_blank") renderFillBlank(step);
+  if (step.type === "chat_choice") renderChatChoice(step);
+  if (step.type === "match_pairs") renderMatchPairs(step);
 }
 
-function updateWordSlot(slotEl, bankEl) {
-  slotEl.innerHTML = State.wordBankPlaced.map((w, idx) => `
-    <button type="button" class="word-chip" data-placed-idx="${idx}" style="background:var(--blue-50);border-color:var(--blue-500)">
-      ${w}
-    </button>
-  `).join('');
-
-  slotEl.querySelectorAll('[data-placed-idx]').forEach(chip => {
-    chip.addEventListener('click', () => {
-      if (State.lessonPhase !== 'answering') return;
-      const idx = parseInt(chip.dataset.placedIdx, 10);
-      const removedWord = State.wordBankPlaced.splice(idx, 1)[0];
-
-      const bankChips = Array.from(bankEl.querySelectorAll('.word-chip'));
-      const matchingBankChip = bankChips.find(c => c.dataset.word === removedWord && c.classList.contains('is-used'));
-      if (matchingBankChip) matchingBankChip.classList.remove('is-used');
-
-      updateWordSlot(slotEl, bankEl);
-      const actionBtn = document.getElementById('lesson-action-btn');
-      if (actionBtn) actionBtn.disabled = State.wordBankPlaced.length === 0;
+function renderWordBank(step) {
+  const container = $("#lesson-step-container");
+  container.innerHTML = `<h3 class="exercise-title">Собери предложение</h3><p class="exercise-prompt">${esc(step.prompt)}</p><div class="word-slot" id="lesson-word-slot"><span class="word-placeholder">Нажимай на слова ниже</span></div><div class="word-bank" id="lesson-word-bank">${step.bank.map((word, index) => `<button type="button" class="word-chip" data-bank-index="${index}">${esc(word)}</button>`).join("")}</div>`;
+  $$('[data-bank-index]', container).forEach((chip) => {
+    chip.addEventListener("click", () => {
+      if (State.lessonPhase !== "answering") return;
+      State.wordBankPlaced.push({ word: step.bank[Number(chip.dataset.bankIndex)], bankIndex: Number(chip.dataset.bankIndex) });
+      chip.classList.add("is-used");
+      chip.disabled = true;
+      updateWordSlot(step);
     });
   });
 }
 
-function handleLessonActionClick() {
-  const lesson = State.currentLesson;
-  const step = lesson.steps[State.currentStepIndex];
-  const actionBtn = document.getElementById('lesson-action-btn');
-  const feedbackBox = document.getElementById('lesson-feedback-box');
+function updateWordSlot(step) {
+  const slot = $("#lesson-word-slot");
+  slot.innerHTML = State.wordBankPlaced.length
+    ? State.wordBankPlaced.map((item, index) => `<button type="button" class="word-chip word-chip--placed" data-placed-index="${index}">${esc(item.word)}</button>`).join("")
+    : '<span class="word-placeholder">Нажимай на слова ниже</span>';
+  $$('[data-placed-index]', slot).forEach((chip) => {
+    chip.addEventListener("click", () => {
+      if (State.lessonPhase !== "answering") return;
+      const [removed] = State.wordBankPlaced.splice(Number(chip.dataset.placedIndex), 1);
+      const bankChip = $(`[data-bank-index="${removed.bankIndex}"]`, $("#lesson-word-bank"));
+      bankChip.classList.remove("is-used");
+      bankChip.disabled = false;
+      updateWordSlot(step);
+    });
+  });
+  $("#lesson-action-btn").disabled = State.wordBankPlaced.length === 0;
+}
 
-  // ФАЗА 1: ПРОВЕРКА ОТВЕТА
-  if (State.lessonPhase === 'answering') {
-    let isCorrect = false;
+function renderFillBlank(step) {
+  const container = $("#lesson-step-container");
+  container.innerHTML = `<h3 class="exercise-title">Заполни пропуск</h3><p class="exercise-prompt">${esc(step.prompt)}</p><div class="workout-card sentence-card"><span>${esc(step.sentence_pre)}</span><span id="blank-placeholder" class="blank-placeholder">___</span><span>${esc(step.sentence_post)}</span></div><div class="choice-list">${step.options.map((option) => `<button type="button" class="choice-btn" data-choice="${esc(option)}"><span class="choice-marker"></span><span>${esc(option)}</span></button>`).join("")}</div><p class="exercise-hint">${esc(step.hint)}</p>`;
+  $$('[data-choice]', container).forEach((button) => {
+    button.addEventListener("click", () => {
+      $$('[data-choice]', container).forEach((item) => item.classList.remove("is-selected"));
+      button.classList.add("is-selected");
+      State.selectedAnswer = button.dataset.choice;
+      $("#blank-placeholder").textContent = button.dataset.choice;
+      $("#lesson-action-btn").disabled = false;
+    });
+  });
+}
 
-    if (step.type === 'word_bank') {
-      isCorrect = JSON.stringify(State.wordBankPlaced) === JSON.stringify(step.target);
-    } else if (step.type === 'fill_blank') {
-      isCorrect = (State.selectedAnswer === step.correct);
-    } else if (step.type === 'chat_choice') {
-      isCorrect = State.selectedAnswer && State.selectedAnswer.is_correct;
-    }
+function renderChatChoice(step) {
+  const container = $("#lesson-step-container");
+  container.innerHTML = `<h3 class="exercise-title">Мини-диалог</h3><div class="story-dialog"><div class="avatar avatar--gold">${esc(step.speaker[0] || "Ө")}</div><div class="story-bubble"><div class="story-bubble__meta">${esc(step.speaker)}</div>${esc(step.speaker_ba)}</div></div><p class="exercise-prompt">${esc(step.prompt)}</p><div class="choice-list">${step.options.map((option, index) => `<button type="button" class="choice-btn" data-chat-index="${index}"><span class="choice-number">${index + 1}</span><span>${esc(option.text)}</span></button>`).join("")}</div>`;
+  $$('[data-chat-index]', container).forEach((button) => {
+    button.addEventListener("click", () => {
+      $$('[data-chat-index]', container).forEach((item) => item.classList.remove("is-selected"));
+      button.classList.add("is-selected");
+      State.selectedAnswer = step.options[Number(button.dataset.chatIndex)];
+      $("#lesson-action-btn").disabled = false;
+    });
+  });
+}
 
-    State.lessonPhase = 'feedback';
+function renderMatchPairs(step) {
+  const container = $("#lesson-step-container");
+  container.innerHTML = `<h3 class="exercise-title">Найди пары</h3><p class="exercise-prompt">${esc(step.prompt)}</p><div class="pairs-progress">Соединено: <strong>${State.matchedPairs.size}/${step.pairs.length}</strong></div><div class="pairs-grid"><div>${shuffled(step.pairs, 1).map((pair) => `<button type="button" class="pair-btn ${State.matchedPairs.has(pair.ba) ? "is-matched" : ""} ${State.pairSelection.ba === pair.ba ? "is-selected" : ""}" data-pair-ba="${esc(pair.ba)}" ${State.matchedPairs.has(pair.ba) ? "disabled" : ""}>${esc(pair.ba)}</button>`).join("")}</div><div>${shuffled(step.pairs, 4).map((pair) => `<button type="button" class="pair-btn ${State.matchedPairs.has(pair.ba) ? "is-matched" : ""} ${State.pairSelection.ru === pair.ru ? "is-selected" : ""}" data-pair-ru="${esc(pair.ru)}" data-pair-key="${esc(pair.ba)}" ${State.matchedPairs.has(pair.ba) ? "disabled" : ""}>${esc(pair.ru)}</button>`).join("")}</div></div>`;
+  $$('[data-pair-ba]', container).forEach((button) => button.addEventListener("click", () => selectPair(step, "ba", button.dataset.pairBa, button.dataset.pairBa)));
+  $$('[data-pair-ru]', container).forEach((button) => button.addEventListener("click", () => selectPair(step, "ru", button.dataset.pairKey, button.dataset.pairRu)));
+  $("#lesson-action-btn").disabled = State.matchedPairs.size !== step.pairs.length;
+}
 
-    if (isCorrect) {
-      MOCK.user.points += 10;
-      updateTopBar();
-      feedbackBox.className = 'modal-feedback-box modal-feedback-box--success';
-      feedbackBox.innerHTML = `
-        <div style="font-size:24px;font-weight:900;color:var(--green-600)">✓</div>
-        <div>
-          <div class="modal-feedback-box__title">Афарин! Всё верно!</div>
-          <div class="modal-feedback-box__desc">+10 XP за правильный ответ</div>
-        </div>
-      `;
-      feedbackBox.hidden = false;
-      actionBtn.className = 'btn btn-success btn-lg btn-block';
-      actionBtn.textContent = 'Продолжить →';
-      actionBtn.disabled = false;
+function selectPair(step, side, key, value) {
+  State.pairSelection[side] = value;
+  if (side === "ba") State.pairSelection.baKey = key;
+  else State.pairSelection.ruKey = key;
+  if (State.pairSelection.ba && State.pairSelection.ru) {
+    if (State.pairSelection.baKey === State.pairSelection.ruKey) {
+      State.matchedPairs.add(State.pairSelection.baKey);
     } else {
-      MOCK.user.hearts = Math.max(0, MOCK.user.hearts - 1);
-      updateTopBar();
-      feedbackBox.className = 'modal-feedback-box modal-feedback-box--error';
-      feedbackBox.innerHTML = `
-        <div style="font-size:24px;font-weight:900;color:var(--red-600)">✕</div>
-        <div>
-          <div class="modal-feedback-box__title">Не совсем так</div>
-          <div class="modal-feedback-box__desc">Запомни правильный вариант и двигайся дальше</div>
-        </div>
-      `;
-      feedbackBox.hidden = false;
-      actionBtn.className = 'btn btn-primary btn-lg btn-block';
-      actionBtn.textContent = 'Продолжить →';
-      actionBtn.disabled = false;
+      showToast("Это не пара. Попробуй ещё раз");
     }
+    State.pairSelection = { ba: null, ru: null };
+  }
+  renderMatchPairs(step);
+}
 
-  // ФАЗА 2: ПЕРЕХОД К СЛЕДУЮЩЕМУ ШАГУ
-  } else if (State.lessonPhase === 'feedback') {
-    State.currentStepIndex++;
+function correctAnswerText(step) {
+  if (step.type === "word_bank") return step.target.join(" ");
+  if (step.type === "fill_blank") return step.hint || step.correct;
+  if (step.type === "chat_choice") return step.options.find((option) => option.is_correct)?.text || "";
+  return "Все пары соединены верно.";
+}
 
-    if (State.currentStepIndex < State.currentLesson.steps.length) {
-      renderLessonStep();
+async function handleLessonAction() {
+  if (State.completing || !State.currentLesson) return;
+  if (State.currentLesson.lesson_type === "flashcards") {
+    if (State.flashIndex < State.currentLesson.cards.length - 1) {
+      State.flashIndex += 1;
+      State.flashFlipped = false;
+      renderFlashcard();
     } else {
-      // Завершение урока
-      State.currentLesson.status = 'completed';
-      State.currentLesson.stars = 3;
-      closeLesson();
-      showToast('Урок успешно завершён! +30 XP');
-      renderCourseTree();
+      await completeCurrentLesson();
     }
+    return;
+  }
+  const step = State.currentLesson.steps[State.currentStepIndex];
+  const action = $("#lesson-action-btn");
+  const feedback = $("#lesson-feedback-box");
+  if (State.lessonPhase === "answering") {
+    let correct = false;
+    if (step.type === "word_bank") correct = JSON.stringify(State.wordBankPlaced.map((item) => item.word)) === JSON.stringify(step.target);
+    if (step.type === "fill_blank") correct = State.selectedAnswer === step.correct;
+    if (step.type === "chat_choice") correct = Boolean(State.selectedAnswer?.is_correct);
+    if (step.type === "match_pairs") correct = State.matchedPairs.size === step.pairs.length;
+    State.lessonPhase = "feedback";
+    feedback.hidden = false;
+    feedback.className = `modal-feedback-box ${correct ? "modal-feedback-box--success" : "modal-feedback-box--error"}`;
+    feedback.innerHTML = `<div class="feedback-symbol">${correct ? "✓" : "×"}</div><div><div class="modal-feedback-box__title">${correct ? "Афарин! Всё верно" : "Посмотри правильный вариант"}</div><div class="modal-feedback-box__desc">${correct ? "Можно двигаться дальше." : esc(correctAnswerText(step))}</div></div>`;
+    if (!correct) {
+      State.hearts = Math.max(0, State.hearts - 1);
+      updateTopBar();
+    }
+    action.className = `btn ${correct ? "btn-success" : "btn-primary"} btn-lg btn-block`;
+    action.textContent = State.currentStepIndex === State.currentLesson.steps.length - 1 ? "Завершить урок · +30 XP" : "Продолжить →";
+    action.disabled = false;
+  } else {
+    State.currentStepIndex += 1;
+    if (State.currentStepIndex < State.currentLesson.steps.length) renderLesson();
+    else await completeCurrentLesson();
   }
 }
 
-// ==========================================================================
-// BOSS STORY QUEST («В гостях у Өләсәй»)
-// ==========================================================================
-
-function startBossQuest() {
-  State.currentBossStageIndex = 0;
-  State.bossPhase = 'answering';
-  State.bossSelectedItems.clear();
-  State.bossChoiceSelected = null;
-  State.bossWordBankPlaced = [];
-
-  const modal = document.getElementById('modal-boss');
-  if (modal) modal.hidden = false;
-
-  renderBossStage();
+async function completeCurrentLesson() {
+  const lesson = State.currentLesson;
+  State.completing = true;
+  const action = $("#lesson-action-btn");
+  setBusy(action, true, "Сохраняем прогресс…");
+  try {
+    const response = await apiRequest("/course/complete", {
+      method: "POST",
+      body: { unit_id: lesson.unit_id, lesson_id: lesson.lesson_id, lesson_type: lesson.lesson_type },
+    });
+    State.progress.add(progressKey(lesson.unit_id, lesson.lesson_id));
+    State.user.points = response.points;
+    State.user.level = response.level;
+    State.completing = false;
+    closeLesson();
+    updateTopBar();
+    renderCourse();
+    showToast(response.already_completed ? "Урок пройден повторно — прогресс сохранён" : `Урок завершён! +${response.awarded_xp} XP`);
+  } catch (error) {
+    State.completing = false;
+    setBusy(action, false);
+    showToast(error.message);
+  }
 }
 
-function closeBossQuest() {
-  const modal = document.getElementById('modal-boss');
-  if (modal) modal.hidden = true;
+// ---------------------------------------------------------------------------
+// Босс-квест Өләсәй
+// ---------------------------------------------------------------------------
+
+function startBoss(unitId) {
+  const unit = COURSE_UNITS.find((item) => item.unit_id === unitId);
+  if (!unit || (!isBossUnlocked(unit) && !isComplete(unitId, unit.final_boss_node.lesson_id))) return;
+  State.bossUnit = unit;
+  State.bossStageIndex = 0;
+  State.bossPhase = "answering";
+  State.completing = false;
+  State.lastFocused = document.activeElement;
+  $("#modal-boss").hidden = false;
+  document.body.classList.add("modal-open");
+  $("#boss-modal-title").textContent = unit.final_boss_node.quest_title;
+  renderBossStage();
+  $("#boss-close").focus();
+}
+
+function closeBoss() {
+  if (State.completing) return;
+  $("#modal-boss").hidden = true;
+  document.body.classList.remove("modal-open");
+  State.lastFocused?.focus();
+}
+
+function bossDialog(stage) {
+  return `<p class="story-context">${esc(stage.story_context)}</p><div class="story-dialog"><div class="avatar avatar--gold">Ө</div><div class="story-bubble"><div class="story-bubble__meta">Өләсәй</div>${esc(stage.npc_speech_ba || "")}</div></div><p class="exercise-prompt">${esc(stage.task_prompt || "")}</p>`;
 }
 
 function renderBossStage() {
-  const stages = MOCK.unit1.final_boss_node.stages;
-  const stage = stages[State.currentBossStageIndex];
-  const container = document.getElementById('boss-step-container');
-  const progressBar = document.getElementById('boss-progress-bar');
-  const stepLabel = document.getElementById('boss-step-label');
-  const actionBtn = document.getElementById('boss-action-btn');
-  const feedbackBox = document.getElementById('boss-feedback-box');
+  const boss = State.bossUnit.final_boss_node;
+  const stage = boss.stages[State.bossStageIndex];
+  const container = $("#boss-step-container");
+  const action = $("#boss-action-btn");
+  State.bossPhase = "answering";
+  State.bossChoice = null;
+  State.bossItems = new Set();
+  State.bossWords = [];
+  $("#boss-feedback-box").hidden = true;
+  $("#boss-progress-bar").style.setProperty("--progress", `${((State.bossStageIndex + 1) / boss.stages.length) * 100}%`);
+  $("#boss-step-label").textContent = `${State.bossStageIndex + 1}/${boss.stages.length}`;
+  action.disabled = stage.mechanic !== "reward_screen";
+  action.className = "btn btn-primary btn-lg btn-block";
+  action.textContent = stage.mechanic === "reward_screen" ? "Забрать награду · +100 XP" : "Проверить ответ";
 
-  if (!stage || !container) return;
-
-  State.bossPhase = 'answering';
-  if (feedbackBox) feedbackBox.hidden = true;
-
-  const progressPct = Math.round(((State.currentBossStageIndex + 1) / stages.length) * 100);
-  if (progressBar) progressBar.style.setProperty('--progress', `${progressPct}%`);
-  if (stepLabel) stepLabel.textContent = `${State.currentBossStageIndex + 1}/${stages.length}`;
-
-  if (actionBtn) {
-    actionBtn.className = 'btn btn-primary btn-lg btn-block';
-    actionBtn.textContent = (stage.mechanic === 'reward_screen') ? 'Завершить контрольную (+100 XP)' : 'Проверить ответ';
-    actionBtn.disabled = (stage.mechanic !== 'reward_screen');
+  if (stage.mechanic === "chat_choice") {
+    container.innerHTML = `${bossDialog(stage)}<div class="choice-list">${stage.options.map((option, index) => `<button class="choice-btn" type="button" data-boss-choice="${index}"><span class="choice-number">${index + 1}</span><span>${esc(option.text_ba)}</span></button>`).join("")}</div>`;
+    $$('[data-boss-choice]', container).forEach((button) => button.addEventListener("click", () => {
+      $$('[data-boss-choice]', container).forEach((item) => item.classList.remove("is-selected"));
+      button.classList.add("is-selected");
+      State.bossChoice = stage.options[Number(button.dataset.bossChoice)];
+      action.disabled = false;
+    }));
   }
-
-  // Шаг 1: chat_choice
-  if (stage.mechanic === 'chat_choice') {
-    container.innerHTML = `
-      <div style="font-size:12px;font-weight:800;color:var(--gold-600);margin-bottom:4px">ШАГ 1: ГОСТЕПРИИМНАЯ ЮРТА</div>
-      <p class="t-14 muted" style="margin-bottom:var(--s3)">${stage.story_context}</p>
-
-      <div class="story-dialog">
-        <div class="avatar avatar--gold" style="width:48px;height:48px;font-weight:900;font-size:18px;flex-shrink:0">Ө</div>
-        <div class="story-bubble">
-          <div class="story-bubble__meta">Өләсәй (Бабушка Халима):</div>
-          ${stage.npc_speech_ba}
-        </div>
-      </div>
-
-      <p class="t-14" style="font-weight:800;margin-bottom:var(--s2)">${stage.task_prompt}</p>
-
-      <div class="choice-list" id="boss-chat-choices">
-        ${stage.options.map((opt, i) => `
-          <button type="button" class="choice-btn" data-index="${i}">
-            <span style="font-weight:900;color:var(--gold-600)">${i + 1}.</span>
-            <span>${opt.text_ba}</span>
-          </button>
-        `).join('')}
-      </div>
-    `;
-
-    const choiceList = document.getElementById('boss-chat-choices');
-    choiceList.querySelectorAll('.choice-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (State.bossPhase !== 'answering') return;
-        choiceList.querySelectorAll('.choice-btn').forEach(b => b.classList.remove('is-selected'));
-        btn.classList.add('is-selected');
-        const idx = parseInt(btn.dataset.index, 10);
-        State.bossChoiceSelected = stage.options[idx];
-        actionBtn.disabled = false;
-      });
-    });
-
-  // Шаг 2: interactive_table (Выбрать 3 продукта)
-  } else if (stage.mechanic === 'interactive_table') {
-    State.bossSelectedItems.clear();
-
-    container.innerHTML = `
-      <div style="font-size:12px;font-weight:800;color:var(--gold-600);margin-bottom:4px">ШАГ 2: НАКРЫВАЕМ НА СТОЛ</div>
-      <p class="t-14 muted" style="margin-bottom:var(--s3)">${stage.story_context}</p>
-
-      <div class="story-dialog">
-        <div class="avatar avatar--gold" style="width:48px;height:48px;font-weight:900;font-size:18px;flex-shrink:0">Ө</div>
-        <div class="story-bubble">
-          <div class="story-bubble__meta">Өләсәй:</div>
-          ${stage.npc_speech_ba}
-        </div>
-      </div>
-
-      <p class="t-14" style="font-weight:800;margin-bottom:var(--s2)">
-        ${stage.task_prompt} <span id="table-counter" style="color:var(--green-600)">(выбрано: 0 из 3)</span>
-      </p>
-
-      <div class="table-grid" id="boss-table-grid">
-        ${stage.table_items.map(item => `
-          <div class="table-card" data-item-id="${item.id}">
-            <div style="font-size:16px;font-weight:900;color:var(--ink-900);margin-bottom:2px">${item.label_ba}</div>
-            <div class="t-12 muted">${item.label_ru}</div>
-          </div>
-        `).join('')}
-      </div>
-    `;
-
-    const grid = document.getElementById('boss-table-grid');
-    const counter = document.getElementById('table-counter');
-
-    grid.querySelectorAll('.table-card').forEach(card => {
-      card.addEventListener('click', () => {
-        if (State.bossPhase !== 'answering') return;
-        const id = card.dataset.itemId;
-        if (State.bossSelectedItems.has(id)) {
-          State.bossSelectedItems.delete(id);
-          card.classList.remove('is-selected');
-        } else {
-          if (State.bossSelectedItems.size < 3) {
-            State.bossSelectedItems.add(id);
-            card.classList.add('is-selected');
-          }
-        }
-        counter.textContent = `(выбрано: ${State.bossSelectedItems.size} из 3)`;
-        actionBtn.disabled = (State.bossSelectedItems.size !== 3);
-      });
-    });
-
-  // Шаг 3: grammar_trap
-  } else if (stage.mechanic === 'grammar_trap') {
-    State.bossChoiceSelected = null;
-
-    container.innerHTML = `
-      <div style="font-size:12px;font-weight:800;color:var(--gold-600);margin-bottom:4px">ШАГ 3: БЕСЕДА</div>
-      <p class="t-14 muted" style="margin-bottom:var(--s3)">${stage.story_context}</p>
-
-      <div class="story-dialog">
-        <div class="avatar avatar--gold" style="width:48px;height:48px;font-weight:900;font-size:18px;flex-shrink:0">Ө</div>
-        <div class="story-bubble">
-          <div class="story-bubble__meta">Өләсәй:</div>
-          ${stage.npc_speech_ba}
-        </div>
-      </div>
-
-      <p class="t-14" style="font-weight:800;margin-bottom:var(--s2)">${stage.task_prompt}</p>
-
-      <div class="workout-card" style="font-size:18px;font-weight:800;padding:20px">
-        <span>${stage.sentence_start}</span>
-        <span id="boss-blank-box" style="display:inline-block;min-width:60px;border-bottom:3px solid var(--gold-500);color:var(--gold-700)">___</span>
-        <span>${stage.sentence_end}</span>
-      </div>
-
-      <div class="choice-list" id="boss-trap-choices">
-        ${stage.options.map(opt => `
-          <button type="button" class="choice-btn" data-value="${opt}">
-            <span style="font-weight:900;color:var(--blue-500)">○</span>
-            <span>${opt}</span>
-          </button>
-        `).join('')}
-      </div>
-    `;
-
-    const choiceList = document.getElementById('boss-trap-choices');
-    const blankBox = document.getElementById('boss-blank-box');
-
-    choiceList.querySelectorAll('.choice-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (State.bossPhase !== 'answering') return;
-        choiceList.querySelectorAll('.choice-btn').forEach(b => b.classList.remove('is-selected'));
-        btn.classList.add('is-selected');
-        State.bossChoiceSelected = btn.dataset.value;
-        blankBox.textContent = btn.dataset.value;
-        actionBtn.disabled = false;
-      });
-    });
-
-  // Шаг 4: boss_word_bank
-  } else if (stage.mechanic === 'boss_word_bank') {
-    State.bossWordBankPlaced = [];
-
-    const allWords = [...stage.correct_sentence_ba, ...stage.distractor_words_ba].sort(() => Math.random() - 0.5);
-
-    container.innerHTML = `
-      <div style="font-size:12px;font-weight:800;color:var(--gold-600);margin-bottom:4px">ШАГ 4: БЛАГОДАРНОСТЬ</div>
-      <p class="t-14 muted" style="margin-bottom:var(--s3)">${stage.story_context}</p>
-      <p class="t-14" style="font-weight:800;margin-bottom:var(--s2)">${stage.task_prompt}</p>
-
-      <div class="word-slot" id="boss-word-slot"></div>
-
-      <div class="word-bank" id="boss-word-bank">
-        ${allWords.map(w => `<button type="button" class="word-chip" data-word="${w}">${w}</button>`).join('')}
-      </div>
-    `;
-
-    const bankEl = document.getElementById('boss-word-bank');
-    const slotEl = document.getElementById('boss-word-slot');
-
-    bankEl.querySelectorAll('.word-chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        if (State.bossPhase !== 'answering') return;
-        const word = chip.dataset.word;
-        State.bossWordBankPlaced.push(word);
-        chip.classList.add('is-used');
-        updateBossWordSlot(slotEl, bankEl);
-        actionBtn.disabled = State.bossWordBankPlaced.length === 0;
-      });
-    });
-
-  // Шаг 5: reward_screen
-  } else if (stage.mechanic === 'reward_screen') {
-    container.innerHTML = `
-      <div style="text-align:center;padding:var(--s3) 0">
-        <div style="width:64px;height:64px;border-radius:50%;background:var(--gold-50);border:2px solid var(--gold-500);color:var(--gold-700);display:flex;align-items:center;justify-content:center;margin:0 auto var(--s3)">
-          <svg class="icon" style="width:32px;height:32px"><use href="#i-crown"></use></svg>
-        </div>
-        <h2 style="font-size:22px;margin-bottom:6px">Контрольная успешно пройдена!</h2>
-        <p class="lead" style="margin-bottom:var(--s4)">Ты подтвердил знание традиций и гостеприимства.</p>
-
-        <div class="story-dialog" style="text-align:left;margin-bottom:var(--s4)">
-          <div class="avatar avatar--gold" style="width:48px;height:48px;font-weight:900;font-size:18px;flex-shrink:0">Ө</div>
-          <div class="story-bubble" style="background:var(--gold-50);border-color:var(--gold-500)">
-            <div class="story-bubble__meta">Өләсәй:</div>
-            ${stage.final_praise_ba}
-            <div style="font-size:13px;font-weight:600;color:var(--ink-600);margin-top:6px">«${stage.final_praise_ru}»</div>
-          </div>
-        </div>
-
-        <div class="card" style="border:2px solid var(--gold-500);background:var(--gold-50);margin-bottom:var(--s4);text-align:left">
-          <div style="font-size:12px;font-weight:900;color:var(--gold-700);margin-bottom:2px">НОВАЯ НАГРАДА В ПРОФИЛЕ</div>
-          <div style="font-size:17px;font-weight:800;color:var(--ink-900);margin-bottom:6px">${stage.reward_trophy.title}</div>
-          <p class="t-13" style="line-height:1.45;color:var(--ink-600);margin:0">
-            <strong>Культурный факт:</strong> ${stage.reward_trophy.cultural_fact}
-          </p>
-        </div>
-      </div>
-    `;
-
-    actionBtn.disabled = false;
+  if (stage.mechanic === "interactive_table") {
+    container.innerHTML = `${bossDialog(stage)}<div class="pairs-progress">Выбрано: <strong id="boss-items-count">0/${stage.required_item_ids.length}</strong></div><div class="table-grid">${stage.table_items.map((item) => `<button class="table-card" type="button" data-table-item="${item.id}"><strong>${esc(item.label_ba)}</strong><span>${esc(item.label_ru)}</span></button>`).join("")}</div>`;
+    $$('[data-table-item]', container).forEach((button) => button.addEventListener("click", () => {
+      const id = button.dataset.tableItem;
+      if (State.bossItems.has(id)) {
+        State.bossItems.delete(id);
+        button.classList.remove("is-selected");
+      } else if (State.bossItems.size < stage.required_item_ids.length) {
+        State.bossItems.add(id);
+        button.classList.add("is-selected");
+      }
+      $("#boss-items-count").textContent = `${State.bossItems.size}/${stage.required_item_ids.length}`;
+      action.disabled = State.bossItems.size !== stage.required_item_ids.length;
+    }));
+  }
+  if (stage.mechanic === "grammar_trap") {
+    container.innerHTML = `${bossDialog(stage)}<div class="workout-card sentence-card"><span>${esc(stage.sentence_start)}</span><span id="boss-blank" class="blank-placeholder">___</span><span>${esc(stage.sentence_end)}</span></div><div class="choice-list">${stage.options.map((option) => `<button class="choice-btn" type="button" data-boss-grammar="${esc(option)}"><span class="choice-marker"></span><span>${esc(option)}</span></button>`).join("")}</div>`;
+    $$('[data-boss-grammar]', container).forEach((button) => button.addEventListener("click", () => {
+      $$('[data-boss-grammar]', container).forEach((item) => item.classList.remove("is-selected"));
+      button.classList.add("is-selected");
+      State.bossChoice = button.dataset.bossGrammar;
+      $("#boss-blank").textContent = State.bossChoice;
+      action.disabled = false;
+    }));
+  }
+  if (stage.mechanic === "boss_word_bank") {
+    const words = shuffled([...stage.correct_sentence_ba, ...stage.distractor_words_ba], 3);
+    container.innerHTML = `${bossDialog(stage)}<div class="word-slot" id="boss-word-slot"><span class="word-placeholder">Собери фразу из слов</span></div><div class="word-bank" id="boss-word-bank">${words.map((word, index) => `<button class="word-chip" type="button" data-boss-bank="${index}">${esc(word)}</button>`).join("")}</div>`;
+    $$('[data-boss-bank]', container).forEach((button) => button.addEventListener("click", () => {
+      State.bossWords.push({ word: words[Number(button.dataset.bossBank)], bankIndex: Number(button.dataset.bossBank) });
+      button.disabled = true;
+      button.classList.add("is-used");
+      updateBossWords();
+    }));
+  }
+  if (stage.mechanic === "reward_screen") {
+    container.innerHTML = `<div class="boss-reward"><div class="reward-crown">${icon("i-crown")}</div><h3>Квест пройден!</h3><div class="story-dialog"><div class="avatar avatar--gold">Ө</div><div class="story-bubble"><strong>${esc(stage.final_praise_ba)}</strong><p>«${esc(stage.final_praise_ru)}»</p></div></div><div class="trophy-card"><span>НОВАЯ НАГРАДА</span><h3>${esc(stage.reward_trophy.title)}</h3><p>${esc(stage.reward_trophy.cultural_fact)}</p></div></div>`;
   }
 }
 
-function updateBossWordSlot(slotEl, bankEl) {
-  slotEl.innerHTML = State.bossWordBankPlaced.map((w, idx) => `
-    <button type="button" class="word-chip" data-boss-placed-idx="${idx}" style="background:var(--gold-50);border-color:var(--gold-500)">
-      ${w}
-    </button>
-  `).join('');
-
-  slotEl.querySelectorAll('[data-boss-placed-idx]').forEach(chip => {
-    chip.addEventListener('click', () => {
-      if (State.bossPhase !== 'answering') return;
-      const idx = parseInt(chip.dataset.bossPlacedIdx, 10);
-      const removedWord = State.bossWordBankPlaced.splice(idx, 1)[0];
-
-      const bankChips = Array.from(bankEl.querySelectorAll('.word-chip'));
-      const matching = bankChips.find(c => c.dataset.word === removedWord && c.classList.contains('is-used'));
-      if (matching) matching.classList.remove('is-used');
-
-      updateBossWordSlot(slotEl, bankEl);
-      const actionBtn = document.getElementById('boss-action-btn');
-      if (actionBtn) actionBtn.disabled = State.bossWordBankPlaced.length === 0;
-    });
-  });
+function updateBossWords() {
+  const slot = $("#boss-word-slot");
+  slot.innerHTML = State.bossWords.length ? State.bossWords.map((item, index) => `<button class="word-chip word-chip--placed" type="button" data-boss-placed="${index}">${esc(item.word)}</button>`).join("") : '<span class="word-placeholder">Собери фразу из слов</span>';
+  $$('[data-boss-placed]', slot).forEach((button) => button.addEventListener("click", () => {
+    const [removed] = State.bossWords.splice(Number(button.dataset.bossPlaced), 1);
+    const bank = $(`[data-boss-bank="${removed.bankIndex}"]`);
+    bank.disabled = false;
+    bank.classList.remove("is-used");
+    updateBossWords();
+  }));
+  $("#boss-action-btn").disabled = State.bossWords.length === 0;
 }
 
-function handleBossActionClick() {
-  const stages = MOCK.unit1.final_boss_node.stages;
-  const stage = stages[State.currentBossStageIndex];
-  const actionBtn = document.getElementById('boss-action-btn');
-  const feedbackBox = document.getElementById('boss-feedback-box');
-
-  // ФИНАЛ: ВРУЧЕНИЕ НАГРАДЫ
-  if (stage.mechanic === 'reward_screen') {
-    MOCK.user.points += 100;
-    updateTopBar();
-    closeBossQuest();
-    showToast('Контрольная завершена! +100 XP');
-    renderCourseTree();
+async function handleBossAction() {
+  if (State.completing) return;
+  const boss = State.bossUnit.final_boss_node;
+  const stage = boss.stages[State.bossStageIndex];
+  if (stage.mechanic === "reward_screen") {
+    await completeBoss();
     return;
   }
-
-  // ФАЗА 1: ПРОВЕРКА ОТВЕТА
-  if (State.bossPhase === 'answering') {
-    let isCorrect = true;
-    if (stage.mechanic === 'chat_choice') {
-      isCorrect = State.bossChoiceSelected && State.bossChoiceSelected.is_correct;
-    } else if (stage.mechanic === 'interactive_table') {
-      const req = new Set(stage.required_item_ids);
-      isCorrect = (State.bossSelectedItems.size === req.size && [...State.bossSelectedItems].every(x => req.has(x)));
-    } else if (stage.mechanic === 'grammar_trap') {
-      isCorrect = (State.bossChoiceSelected === stage.correct_option);
-    } else if (stage.mechanic === 'boss_word_bank') {
-      isCorrect = JSON.stringify(State.bossWordBankPlaced) === JSON.stringify(stage.correct_sentence_ba);
-    }
-
-    State.bossPhase = 'feedback';
-
-    if (isCorrect) {
-      MOCK.user.points += 20;
-      updateTopBar();
-      feedbackBox.className = 'modal-feedback-box modal-feedback-box--success';
-      feedbackBox.innerHTML = `
-        <div style="font-size:24px;font-weight:900;color:var(--green-600)">✓</div>
-        <div>
-          <div class="modal-feedback-box__title">Афарин! (Отлично!)</div>
-          <div class="modal-feedback-box__desc">+20 XP за правильный ответ</div>
-        </div>
-      `;
-      feedbackBox.hidden = false;
-      actionBtn.className = 'btn btn-success btn-lg btn-block';
-      actionBtn.textContent = 'Следующий шаг →';
-      actionBtn.disabled = false;
-    } else {
-      feedbackBox.className = 'modal-feedback-box modal-feedback-box--error';
-      feedbackBox.innerHTML = `
-        <div style="font-size:24px;font-weight:900;color:var(--red-600)">✕</div>
-        <div>
-          <div class="modal-feedback-box__title">Өләсәй ждала другого ответа</div>
-          <div class="modal-feedback-box__desc">Внимательно перечитай реплику бабушки</div>
-        </div>
-      `;
-      feedbackBox.hidden = false;
-      actionBtn.className = 'btn btn-primary btn-lg btn-block';
-      actionBtn.textContent = 'Следующий шаг →';
-      actionBtn.disabled = false;
-    }
-
-  // ФАЗА 2: ПЕРЕХОД
-  } else if (State.bossPhase === 'feedback') {
-    State.currentBossStageIndex++;
+  const action = $("#boss-action-btn");
+  const feedback = $("#boss-feedback-box");
+  if (State.bossPhase === "answering") {
+    let correct = false;
+    if (stage.mechanic === "chat_choice") correct = Boolean(State.bossChoice?.is_correct);
+    if (stage.mechanic === "interactive_table") correct = stage.required_item_ids.every((id) => State.bossItems.has(id)) && State.bossItems.size === stage.required_item_ids.length;
+    if (stage.mechanic === "grammar_trap") correct = State.bossChoice === stage.correct_option;
+    if (stage.mechanic === "boss_word_bank") correct = JSON.stringify(State.bossWords.map((item) => item.word)) === JSON.stringify(stage.correct_sentence_ba);
+    State.bossPhase = "feedback";
+    const explanation = State.bossChoice?.error_hint || stage.grammar_explanation || stage.correct_sentence_ba?.join(" ") || "Вспомни слова из карточек.";
+    feedback.hidden = false;
+    feedback.className = `modal-feedback-box ${correct ? "modal-feedback-box--success" : "modal-feedback-box--error"}`;
+    feedback.innerHTML = `<div class="feedback-symbol">${correct ? "✓" : "×"}</div><div><div class="modal-feedback-box__title">${correct ? "Өләсәй довольна!" : "Попробуем разобраться"}</div><div class="modal-feedback-box__desc">${correct ? "Ответ принят." : esc(explanation)}</div></div>`;
+    action.textContent = "Следующий шаг →";
+    action.disabled = false;
+  } else {
+    State.bossStageIndex += 1;
     renderBossStage();
   }
 }
 
-// ==========================================================================
-// СООБЩЕСТВО (КИТАПХАНА): 2 КАРТОЧКИ ВЫБОРА -> РЕЖИМЫ
-// ==========================================================================
-
-function resetCommunityToHub() {
-  const hub = document.getElementById('comm-hub-view');
-  const verify = document.getElementById('comm-verify-view');
-  const suggest = document.getElementById('comm-suggest-view');
-  if (hub) hub.hidden = false;
-  if (verify) verify.hidden = true;
-  if (suggest) suggest.hidden = true;
-}
-
-function initCommunity() {
-  const cardVerify = document.getElementById('card-action-verify');
-  const cardAdd = document.getElementById('card-action-add');
-  const hubView = document.getElementById('comm-hub-view');
-  const verifyView = document.getElementById('comm-verify-view');
-  const suggestView = document.getElementById('comm-suggest-view');
-
-  const backBtn1 = document.getElementById('btn-back-hub-1');
-  const backBtn2 = document.getElementById('btn-back-hub-2');
-
-  if (cardVerify) {
-    cardVerify.addEventListener('click', () => {
-      hubView.hidden = true;
-      verifyView.hidden = false;
-      suggestView.hidden = true;
-      renderCommunityVerifyTask();
+async function completeBoss() {
+  const boss = State.bossUnit.final_boss_node;
+  State.completing = true;
+  const action = $("#boss-action-btn");
+  setBusy(action, true, "Сохраняем награду…");
+  try {
+    const response = await apiRequest("/course/complete", {
+      method: "POST",
+      body: { unit_id: boss.unit_id, lesson_id: boss.lesson_id, lesson_type: "boss" },
     });
-  }
-
-  if (cardAdd) {
-    cardAdd.addEventListener('click', () => {
-      hubView.hidden = true;
-      verifyView.hidden = true;
-      suggestView.hidden = false;
-      renderUserSubmissions();
-    });
-  }
-
-  if (backBtn1) backBtn1.addEventListener('click', resetCommunityToHub);
-  if (backBtn2) backBtn2.addEventListener('click', resetCommunityToHub);
-
-  // Буквы башкирского языка
-  document.querySelectorAll('.ba-key').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const letter = btn.dataset.letter;
-      const input = document.getElementById('suggest-ba');
-      if (!input) return;
-      input.value += letter;
-      input.focus();
-    });
-  });
-
-  // Форма добавления нового перевода
-  const formSuggest = document.getElementById('form-suggest-translation');
-  if (formSuggest) {
-    formSuggest.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const baInput = document.getElementById('suggest-ba');
-      const ruInput = document.getElementById('suggest-ru');
-      const sourceInput = document.getElementById('suggest-source');
-
-      const baText = baInput.value.trim();
-      const ruText = ruInput.value.trim();
-      const source = sourceInput.value;
-
-      if (baText.length < 2 || ruText.length < 2) {
-        showToast('Фраза слишком короткая');
-        return;
-      }
-
-      MOCK.user_submissions.unshift({
-        ba: baText,
-        ru: ruText,
-        source: source,
-        status: "На проверке"
-      });
-      MOCK.user.points += 20;
-      updateTopBar();
-      showToast('Фраза добавлена в базу! +20 XP');
-
-      baInput.value = '';
-      ruInput.value = '';
-      renderUserSubmissions();
-    });
-  }
-
-  // Проверка карточек в блоке
-  const btnCorrect = document.getElementById('btn-comm-correct');
-  const btnFix = document.getElementById('btn-comm-fix');
-  const btnSubmitFix = document.getElementById('btn-comm-submit-fix');
-  const btnCancelFix = document.getElementById('btn-comm-cancel-fix');
-  const btnNextBlock = document.getElementById('btn-comm-next-block');
-
-  if (btnCorrect) {
-    btnCorrect.addEventListener('click', () => handleCommunityAnswer(true));
-  }
-
-  if (btnFix) {
-    btnFix.addEventListener('click', () => {
-      document.getElementById('comm-fix-card').hidden = false;
-      document.getElementById('comm-normal-actions').hidden = true;
-      document.getElementById('comm-fix-actions').hidden = false;
-      document.getElementById('comm-fix-input').focus();
-    });
-  }
-
-  if (btnCancelFix) {
-    btnCancelFix.addEventListener('click', () => {
-      document.getElementById('comm-fix-card').hidden = true;
-      document.getElementById('comm-normal-actions').hidden = false;
-      document.getElementById('comm-fix-actions').hidden = true;
-      document.getElementById('comm-fix-input').value = '';
-    });
-  }
-
-  if (btnSubmitFix) {
-    btnSubmitFix.addEventListener('click', () => {
-      const fixInput = document.getElementById('comm-fix-input');
-      if (!fixInput.value.trim()) {
-        showToast('Введи исправленный вариант');
-        return;
-      }
-      handleCommunityAnswer(false, fixInput.value.trim());
-    });
-  }
-
-  if (btnNextBlock) {
-    btnNextBlock.addEventListener('click', () => {
-      State.commIndex = 0;
-      State.commXpGained = 0;
-      document.getElementById('comm-finish-card').hidden = true;
-      document.getElementById('comm-normal-actions').hidden = false;
-      renderCommunityVerifyTask();
-    });
+    State.progress.add(progressKey(boss.unit_id, boss.lesson_id));
+    State.user.points = response.points;
+    State.user.level = response.level;
+    State.completing = false;
+    closeBoss();
+    updateTopBar();
+    renderCourse();
+    showToast(response.already_completed ? "Квест пройден повторно" : `Победа! +${response.awarded_xp} XP`);
+  } catch (error) {
+    State.completing = false;
+    setBusy(action, false);
+    showToast(error.message);
   }
 }
 
-function renderCommunityVerifyTask() {
-  const fragments = MOCK.community_fragments;
-  const item = fragments[State.commIndex];
+// ---------------------------------------------------------------------------
+// Ежедневный краудсорсинг и экспорт
+// ---------------------------------------------------------------------------
 
-  if (!item) {
-    document.getElementById('comm-finish-card').hidden = false;
-    document.getElementById('comm-normal-actions').hidden = true;
-    document.getElementById('comm-fix-card').hidden = true;
-    document.getElementById('comm-fix-actions').hidden = true;
+function sourceText(source) {
+  if (!source) return "Источник не указан";
+  return [source.file, source.chapter, source.time].filter(Boolean).join(" · ");
+}
+
+async function loadDailyTask() {
+  const body = $("#daily-body");
+  body.innerHTML = loadingBlock("Подбираем фрагмент для проверки…");
+  State.dailyMode = "actions";
+  State.dailyResult = null;
+  State.dailyCorrection = "";
+  try {
+    State.dailyTask = await apiRequest("/tasks/daily");
+    renderDaily();
+  } catch (error) {
+    State.dailyTask = null;
+    renderError(body, error, loadDailyTask);
+  }
+}
+
+function renderDaily() {
+  const task = State.dailyTask;
+  const body = $("#daily-body");
+  if (!task) return;
+  const disabled = State.dailySubmitting ? "disabled" : "";
+  let actions = "";
+  if (State.dailyMode === "actions") {
+    actions = `<div class="daily-actions"><button class="btn btn-success" type="button" data-daily="correct" ${disabled}>${icon("i-check")}Перевод верный · +10 XP</button><button class="btn btn-ghost" type="button" data-daily="fix" ${disabled}>${icon("i-pencil")}Исправить · +15 XP</button></div>`;
+  }
+  if (State.dailyMode === "fix") {
+    const correction = State.dailyCorrection || task.translation;
+    actions = `<div class="correction-box"><label class="field"><span class="label">Правильный перевод на русский</span><textarea id="daily-correction" class="input textarea" rows="3" required>${esc(correction)}</textarea></label><div class="daily-actions"><button class="btn btn-primary" type="button" data-daily="submit-fix" ${disabled}>Отправить исправление</button><button class="btn btn-ghost" type="button" data-daily="cancel" ${disabled}>Отмена</button></div></div>`;
+  }
+  if (State.dailyMode === "result" && State.dailyResult) {
+    const result = State.dailyResult;
+    const statusLabels = { confirmed: "Достигнут консенсус", expert_review: "Нужна экспертная проверка", pending: "Голос сохранён" };
+    actions = `<div class="daily-result"><strong>+${formatNumber(result.pointsEarned)} XP · всего ${formatNumber(result.points)} XP</strong><p>${esc(result.message)} ${esc(statusLabels[result.consensus] || result.consensus)}</p><button class="btn btn-primary btn-block" type="button" data-daily="next">Следующий фрагмент →</button></div>`;
+  }
+  body.innerHTML = `<article class="workout-card daily-card"><div class="daily-card__top"><span class="chip-static">Ежедневное задание</span><span>${esc(task.lang_pair)}</span></div><p class="text-ba">${esc(task.text_ba)}</p><p class="source-line">${icon("i-book", "icon icon-sm")}${esc(sourceText(task.source))}</p><div class="translation-panel"><span>Предложенный перевод</span><p>${esc(task.translation)}</p></div>${actions}</article>`;
+  if (State.dailyMode === "fix") $("#daily-correction").focus();
+}
+
+async function submitDaily(isCorrect) {
+  if (State.dailySubmitting) return;
+  const translation = isCorrect ? State.dailyTask.translation : $("#daily-correction")?.value.trim();
+  if (!translation) {
+    showToast("Введите исправленный перевод");
     return;
   }
-
-  document.getElementById('comm-task-index').textContent = State.commIndex + 1;
-  document.getElementById('comm-ba-text').textContent = item.text_ba;
-  document.getElementById('comm-source-text').innerHTML = `
-    <svg class="icon icon-sm" aria-hidden="true" style="display:inline-block;vertical-align:middle;margin-right:4px"><use href="#i-book"></use></svg>
-    ${item.source}
-  `;
-  document.getElementById('comm-ru-text').textContent = item.translation;
-  document.getElementById('comm-confirmed-badge').textContent = `${item.confirmed} подтверждений`;
-
-  document.getElementById('comm-fix-card').hidden = true;
-  document.getElementById('comm-normal-actions').hidden = false;
-  document.getElementById('comm-fix-actions').hidden = true;
-  document.getElementById('comm-fix-input').value = '';
-}
-
-function handleCommunityAnswer(isConfirmed, fixText = '') {
-  const earnedXp = isConfirmed ? 10 : 15;
-  MOCK.user.points += earnedXp;
-  MOCK.user.verified_count++;
-  State.commXpGained += earnedXp;
-  updateTopBar();
-
-  showToast(isConfirmed ? 'Перевод подтверждён! +10 XP' : 'Исправление принято! +15 XP');
-  State.commIndex++;
-  renderCommunityVerifyTask();
-}
-
-function renderUserSubmissions() {
-  const container = document.getElementById('comm-user-submissions');
-  if (!container) return;
-
-  container.innerHTML = MOCK.user_submissions.map(sub => `
-    <div class="card" style="padding:12px 14px;border-left:4px solid var(--blue-500)">
-      <div style="font-weight:800;font-size:15px;color:var(--ink-900);margin-bottom:2px">${sub.ba}</div>
-      <div class="t-13" style="color:var(--ink-600);margin-bottom:4px">${sub.ru}</div>
-      <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--ink-500)">
-        <span>${sub.source}</span>
-        <span class="chip" style="font-size:11px;padding:2px 8px">${sub.status}</span>
-      </div>
-    </div>
-  `).join('');
-}
-
-// ==========================================================================
-// ПРОФИЛЬ, НАГРАДЫ И РЕЙТИНГИ
-// ==========================================================================
-
-function renderProfile() {
-  document.getElementById('prof-name').textContent = MOCK.user.name;
-  document.getElementById('prof-school').textContent = `${MOCK.user.school} · ${MOCK.user.class_name} класс`;
-  document.getElementById('prof-points').textContent = MOCK.user.points;
-  document.getElementById('prof-level').textContent = MOCK.user.level;
-  document.getElementById('prof-streak').textContent = MOCK.user.streak;
-  document.getElementById('prof-accuracy').textContent = `${MOCK.user.accuracy}%`;
-
-  renderBadges();
-  renderLeaderboard();
-}
-
-function renderBadges() {
-  const list = document.getElementById('prof-badge-list');
-  if (!list) return;
-
-  list.innerHTML = MOCK.badges.map(b => `
-    <div class="badge-item">
-      <div class="badge-item__icon badge-item__icon--${b.colorClass}">
-        <svg class="icon"><use href="#${b.icon}"></use></svg>
-      </div>
-      <div class="badge-item__info">
-        <div class="badge-item__title">${b.title}</div>
-        <div class="badge-item__desc">${b.desc}</div>
-      </div>
-      <span class="chip chip--green" style="font-size:11px;font-weight:800">${b.status}</span>
-    </div>
-  `).join('');
-}
-
-function renderLeaderboard() {
-  const list = document.getElementById('board-list');
-  if (!list) return;
-
-  const data = MOCK.leaderboard[State.activeBoard] || MOCK.leaderboard.students;
-
-  list.innerHTML = data.map((item) => {
-    let rankBadgeClass = 'rank-badge--other';
-    if (item.rank === 1) rankBadgeClass = 'rank-badge--1';
-    if (item.rank === 2) rankBadgeClass = 'rank-badge--2';
-    if (item.rank === 3) rankBadgeClass = 'rank-badge--3';
-
-    const isMe = item.is_me;
-    return `
-      <div class="rank-item ${isMe ? 'is-me' : ''}" style="${isMe ? 'background:var(--blue-50);border:2px solid var(--blue-500)' : ''}">
-        <div class="rank-badge ${rankBadgeClass}">${item.rank}</div>
-        <div class="avatar" style="width:36px;height:36px;font-size:14px">${item.name.slice(0, 2).toUpperCase()}</div>
-        <div class="rank-info">
-          <div class="rank-name">${item.name}</div>
-          <div class="rank-meta">${item.meta}</div>
-        </div>
-        <div class="rank-points">
-          <span>${item.points}</span>
-          <svg class="icon icon-sm stat-kurai" aria-hidden="true"><use href="#kurai"></use></svg>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-function initProfileTabs() {
-  document.querySelectorAll('[data-board]').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('[data-board]').forEach(t => t.classList.remove('is-active'));
-      tab.classList.add('is-active');
-      State.activeBoard = tab.dataset.board;
-      renderLeaderboard();
+  State.dailyCorrection = isCorrect ? "" : translation;
+  State.dailySubmitting = true;
+  renderDaily();
+  try {
+    const response = await apiRequest("/tasks/submit", {
+      method: "POST",
+      body: { fragment_id: State.dailyTask.fragment_id, translation, is_correct: isCorrect },
     });
-  });
-
-  const resetBtn = document.getElementById('btn-reset-demo');
-  if (resetBtn) {
-    resetBtn.addEventListener('click', () => {
-      MOCK.user.points = 240;
-      MOCK.user.hearts = 5;
-      MOCK.unit1.lessons[0].status = 'completed';
-      MOCK.unit1.lessons[1].status = 'active';
-      MOCK.unit1.lessons[2].status = 'open';
-      updateTopBar();
-      renderCourseTree();
-      renderProfile();
-      showToast('Прогресс сброшен к начальному состоянию');
-    });
+    State.dailyResult = {
+      pointsEarned: response.answer.points_earned,
+      points: response.points,
+      message: response.message,
+      consensus: response.consensus_status,
+    };
+    State.user.points = response.points;
+    State.user.level = response.level;
+    State.user.badges = response.badges;
+    State.dailyMode = "result";
+    updateTopBar();
+  } catch (error) {
+    showToast(error.message);
+    if (error.status === 401) logout("Сессия истекла. Войдите снова.");
+  } finally {
+    State.dailySubmitting = false;
+    renderDaily();
   }
 }
 
-// ==========================================================================
-// ТОЧКА ВХОДА
-// ==========================================================================
+async function downloadTranslations(format, button) {
+  setBusy(button, true, "…");
+  try {
+    const blob = await apiRequest(`/translations/export?format=${format}`, { responseType: "blob" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `confirmed_translations.${format}`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    showToast(`Выгрузка ${format.toUpperCase()} готова`);
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    setBusy(button, false);
+  }
+}
 
-document.addEventListener('DOMContentLoaded', () => {
-  initNavigation();
-  initCommunity();
-  initProfileTabs();
-  updateTopBar();
+// ---------------------------------------------------------------------------
+// Рейтинги
+// ---------------------------------------------------------------------------
 
-  // Слушатели модалок
-  const lessonClose = document.getElementById('lesson-close');
-  if (lessonClose) lessonClose.addEventListener('click', closeLesson);
+function renderRatingControls() {
+  $("#rating-categories").innerHTML = RATING_CATEGORIES.map((category) => `<button class="tab ${category.id === State.ratingCategory ? "is-active" : ""}" type="button" role="tab" aria-selected="${category.id === State.ratingCategory}" data-rating-category="${category.id}">${category.label}</button>`).join("");
+  $("#rating-periods").innerHTML = RATING_PERIODS.map((period) => `<button class="chip ${period.id === State.ratingPeriod ? "is-active" : ""}" type="button" aria-pressed="${period.id === State.ratingPeriod}" data-rating-period="${period.id}">${period.label}</button>`).join("");
+  $$('[data-rating-category]').forEach((button) => button.addEventListener("click", () => {
+    State.ratingCategory = button.dataset.ratingCategory;
+    renderRatingControls();
+    loadRatings();
+  }));
+  $$('[data-rating-period]').forEach((button) => button.addEventListener("click", () => {
+    State.ratingPeriod = button.dataset.ratingPeriod;
+    renderRatingControls();
+    loadRatings();
+  }));
+}
 
-  const lessonAction = document.getElementById('lesson-action-btn');
-  if (lessonAction) lessonAction.addEventListener('click', handleLessonActionClick);
+async function loadRatings() {
+  const requestId = ++State.ratingRequest;
+  const body = $("#rating-body");
+  body.innerHTML = loadingBlock("Считаем рейтинг…");
+  const category = RATING_CATEGORIES.find((item) => item.id === State.ratingCategory);
+  try {
+    const rows = await apiRequest(`${category.endpoint}?period=${State.ratingPeriod}`);
+    if (requestId !== State.ratingRequest) return;
+    renderRatings(rows);
+  } catch (error) {
+    if (requestId === State.ratingRequest) renderError(body, error, loadRatings);
+  }
+}
 
-  const bossClose = document.getElementById('boss-close');
-  if (bossClose) bossClose.addEventListener('click', closeBossQuest);
+function ratingViewModel(category, item) {
+  if (category === "schools") return { name: item.school, meta: `${formatNumber(item.students)} учеников`, value: `${formatNumber(item.points)} XP` };
+  if (category === "classes") return { name: `${item.class_name} класс`, meta: item.school, value: `${formatNumber(item.points)} XP` };
+  if (category === "accuracy") return { name: item.full_name, meta: `${formatNumber(item.correct_answers)} из ${formatNumber(item.total_answers)} ответов`, value: `${formatNumber(item.accuracy)}%` };
+  if (category === "vocabulary") return { name: item.full_name, meta: [item.school, item.class_name].filter(Boolean).join(" · "), value: `${formatNumber(item.unique_translations)} слов` };
+  if (category === "corrections") return { name: item.full_name, meta: `${formatNumber(item.points)} XP за исправления`, value: formatNumber(item.corrections) };
+  return { name: item.full_name, meta: [item.school, item.class_name].filter(Boolean).join(" · "), value: `${formatNumber(item.points)} XP` };
+}
 
-  const bossAction = document.getElementById('boss-action-btn');
-  if (bossAction) bossAction.addEventListener('click', handleBossActionClick);
-});
+function renderRatings(rows) {
+  const body = $("#rating-body");
+  if (!rows.length) {
+    body.innerHTML = emptyBlock("За этот период пока нет результатов", "Переключите период или выполните задание первым.");
+    return;
+  }
+  body.innerHTML = rows.map((item) => {
+    const view = ratingViewModel(State.ratingCategory, item);
+    const mine = item.user_id === State.user.id;
+    return `<div class="rank-item ${mine ? "rank-item--me" : ""}"><div class="rank-badge rank-badge--${item.rank <= 3 ? item.rank : "other"}">${item.rank}</div><div class="avatar">${esc(initials(view.name))}</div><div class="rank-info"><span class="rank-name">${esc(view.name)}${mine ? " · Вы" : ""}</span><span class="rank-meta">${esc(view.meta)}</span></div><strong class="rank-points">${esc(view.value)}</strong></div>`;
+  }).join("");
+}
+
+// ---------------------------------------------------------------------------
+// Профиль, учитель и модерация
+// ---------------------------------------------------------------------------
+
+function renderProfile() {
+  const user = State.user;
+  const earned = new Set(user.badges || []);
+  COURSE_UNITS.forEach((unit) => {
+    if (isComplete(unit.unit_id, unit.final_boss_node.lesson_id)) earned.add(`boss-${unit.unit_id}`);
+  });
+  const badges = [
+    ...BADGE_CATALOG,
+    ...COURSE_UNITS.map((unit) => ({ id: `boss-${unit.unit_id}`, title: unit.final_boss_node.quest_title, desc: "Финальный квест с Өләсәй пройден", icon: "i-crown" })),
+  ];
+  $("#profile-content").innerHTML = `<div class="profile-hero"><div class="avatar avatar--blue profile-avatar">${esc(initials(user.full_name))}</div><h2>${esc(user.full_name)}</h2><p>${esc([user.school, user.class_name && `${user.class_name} класс`].filter(Boolean).join(" · ") || user.email || "Башкирская языковая школа")}</p><span class="role-badge">${esc({ student: "Ученик", teacher: "Учитель", expert: "Эксперт УФИЦ РАН", admin: "Администратор УФИЦ РАН" }[user.role] || user.role)}</span></div>
+    <div class="stat-grid profile-stats"><div class="stat stat--gold"><div class="stat__icon">${icon("kurai")}</div><div class="stat__body"><div class="stat__value">${formatNumber(user.points)}</div><div class="stat__label">очков XP</div></div></div><div class="stat"><div class="stat__icon">${icon("i-cup")}</div><div class="stat__body"><div class="stat__value">${formatNumber(user.level)}</div><div class="stat__label">уровень</div></div></div><div class="stat stat--gold"><div class="stat__icon">${icon("i-flame")}</div><div class="stat__body"><div class="stat__value">${formatNumber(user.streak_days)}</div><div class="stat__label">дней серии</div></div></div><div class="stat stat--green"><div class="stat__icon">${icon("i-check")}</div><div class="stat__body"><div class="stat__value">${State.progress.size}</div><div class="stat__label">этапов курса</div></div></div></div>
+    <div class="section-title-row"><h3>Награды</h3><span class="muted">${earned.size}/${badges.length}</span></div><div class="badge-list">${badges.map((badge) => `<div class="badge-item ${earned.has(badge.id) ? "" : "badge-item--locked"}"><div class="badge-item__icon">${icon(badge.icon)}</div><div class="badge-item__info"><div class="badge-item__title">${esc(badge.title)}</div><div class="badge-item__desc">${esc(badge.desc)}</div></div><span class="badge-status">${earned.has(badge.id) ? "Получено" : "Впереди"}</span></div>`).join("")}</div>
+    <div class="profile-actions"><button id="profile-refresh" class="btn btn-ghost btn-block" type="button">Обновить данные профиля</button><button id="logout-button" class="btn btn-ghost btn-block danger-text" type="button">Выйти из аккаунта</button></div>`;
+  $("#profile-refresh").addEventListener("click", refreshProfile);
+  $("#logout-button").addEventListener("click", () => logout());
+}
+
+async function refreshProfile() {
+  try {
+    State.user = await apiRequest("/auth/me");
+    updateTopBar();
+    renderProfile();
+    showToast("Профиль обновлён");
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+async function loadTeacherReport(event) {
+  event?.preventDefault();
+  const school = $("#teacher-school").value.trim();
+  const className = $("#teacher-class").value.trim();
+  const container = $("#teacher-report");
+  container.innerHTML = loadingBlock("Готовим отчёт…");
+  try {
+    State.teacherReport = await apiRequest(`/teacher/class-report?school=${encodeURIComponent(school)}&class_name=${encodeURIComponent(className)}`);
+    renderTeacherReport();
+  } catch (error) {
+    renderError(container, error, () => loadTeacherReport());
+  }
+}
+
+function renderTeacherReport() {
+  const report = State.teacherReport;
+  const container = $("#teacher-report");
+  if (!report.students.length) {
+    container.innerHTML = emptyBlock("В этом классе пока нет учеников", "Проверьте точное название школы и класс.");
+    return;
+  }
+  const average = report.students.reduce((sum, student) => sum + student.accuracy, 0) / report.students.length;
+  container.innerHTML = `<div class="report-summary"><div><span>Учеников</span><strong>${report.total_students}</strong></div><div><span>Средняя точность</span><strong>${formatNumber(average.toFixed(1))}%</strong></div></div><div class="table-scroll"><table class="report-table"><thead><tr><th>Ученик</th><th>XP</th><th>Уровень</th><th>Ответы</th><th>Точность</th></tr></thead><tbody>${report.students.map((student) => `<tr><td>${esc(student.full_name)}</td><td>${formatNumber(student.points)}</td><td>${formatNumber(student.level)}</td><td>${formatNumber(student.total_answers)}</td><td><strong>${formatNumber(student.accuracy)}%</strong></td></tr>`).join("")}</tbody></table></div><p class="report-caption">${esc(report.school)} · ${esc(report.class_name)}</p>`;
+}
+
+async function loadModeration() {
+  const container = $("#moderation-list");
+  container.innerHTML = loadingBlock("Загружаем спорные переводы…");
+  try {
+    State.moderation = await apiRequest("/moderation/disputed");
+    renderModeration();
+  } catch (error) {
+    renderError(container, error, loadModeration);
+  }
+}
+
+function renderModeration() {
+  const container = $("#moderation-list");
+  if (!State.moderation.length) {
+    container.innerHTML = emptyBlock("Спорных переводов нет", "Все фрагменты проверены. Отличная работа!");
+    return;
+  }
+  container.innerHTML = State.moderation.map((item) => `<article class="moderation-card"><div class="moderation-card__head"><span class="chip-static">Фрагмент #${item.fragment_id}</span><span>${esc(item.lang_pair)}</span></div><p class="moderation-ba">${esc(item.text_ba)}</p><p class="source-line">${esc(sourceText(item.source))}</p><div class="moderation-current"><span>Текущий спорный вариант</span><p>${esc(item.translation)}</p></div><div class="variant-list">${item.variants.map((variant) => `<div><p>${esc(variant.translation)}</p><span>${variant.votes} голосов · ${variant.correct_votes} за · ${variant.correction_votes} исправлений</span></div>`).join("")}</div><label class="field"><span class="label">Итоговый эталонный перевод</span><textarea class="input textarea" rows="3" id="moderation-text-${item.translation_id}">${esc(item.translation)}</textarea></label><div class="daily-actions"><button class="btn btn-success" type="button" data-moderation-id="${item.translation_id}" data-approved="true">${icon("i-check")}Подтвердить</button><button class="btn btn-primary" type="button" data-moderation-id="${item.translation_id}" data-approved="false">Сохранить исправление</button></div></article>`).join("");
+  $$('[data-moderation-id]', container).forEach((button) => button.addEventListener("click", () => resolveModeration(button)));
+}
+
+async function resolveModeration(button) {
+  const id = Number(button.dataset.moderationId);
+  const approved = button.dataset.approved === "true";
+  const item = State.moderation.find((entry) => entry.translation_id === id);
+  const finalTranslation = approved ? item.translation : $(`#moderation-text-${id}`).value.trim();
+  if (!finalTranslation) {
+    showToast("Введите итоговый перевод");
+    return;
+  }
+  setBusy(button, true, "Сохраняем…");
+  try {
+    const response = await apiRequest("/moderation/resolve", {
+      method: "POST",
+      body: { translation_id: id, final_translation: finalTranslation, approved },
+    });
+    showToast(response.message);
+    await loadModeration();
+  } catch (error) {
+    showToast(error.message);
+    setBusy(button, false);
+  }
+}
+
+function logout(message = "") {
+  saveToken("");
+  window.speechSynthesis?.cancel();
+  State.dailyTask = null;
+  State.teacherReport = null;
+  State.moderation = [];
+  closeLesson();
+  closeBoss();
+  showAuth(message);
+  setAuthMode("login");
+}
+
+// ---------------------------------------------------------------------------
+// Инициализация
+// ---------------------------------------------------------------------------
+
+function bindEvents() {
+  $("#auth-show-login").addEventListener("click", () => setAuthMode("login"));
+  $("#auth-show-register").addEventListener("click", () => setAuthMode("register"));
+  $("#login-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    login(data.get("email").trim(), data.get("password"), $("button[type='submit']", event.currentTarget));
+  });
+  $("#register-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    register(event.currentTarget);
+  });
+  $$('[data-demo-email]').forEach((button) => button.addEventListener("click", () => {
+    setAuthMode("login");
+    $("#login-form [name='email']").value = button.dataset.demoEmail;
+    $("#login-form [name='password']").value = "1234";
+    login(button.dataset.demoEmail, "1234", button);
+  }));
+  $$('.duo-nav-tab').forEach((link) => link.addEventListener("click", (event) => {
+    event.preventDefault();
+    switchTab(link.dataset.tab);
+  }));
+  $("#top-avatar").addEventListener("click", (event) => {
+    event.preventDefault();
+    switchTab("profile");
+  });
+  window.addEventListener("hashchange", () => {
+    if (State.user) switchTab(location.hash.slice(1));
+  });
+  $("#lesson-close").addEventListener("click", closeLesson);
+  $("#lesson-action-btn").addEventListener("click", handleLessonAction);
+  $("#boss-close").addEventListener("click", closeBoss);
+  $("#boss-action-btn").addEventListener("click", handleBossAction);
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    if (!$("#modal-lesson").hidden) closeLesson();
+    if (!$("#modal-boss").hidden) closeBoss();
+  });
+  $("#daily-body").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-daily]");
+    if (!button) return;
+    const action = button.dataset.daily;
+    if (action === "correct") submitDaily(true);
+    if (action === "fix") { State.dailyMode = "fix"; renderDaily(); }
+    if (action === "submit-fix") submitDaily(false);
+    if (action === "cancel") { State.dailyMode = "actions"; renderDaily(); }
+    if (action === "next") loadDailyTask();
+  });
+  $$('[data-export]').forEach((button) => button.addEventListener("click", () => downloadTranslations(button.dataset.export, button)));
+  $("#teacher-form").addEventListener("submit", loadTeacherReport);
+  $("#moderation-refresh").addEventListener("click", loadModeration);
+}
+
+async function init() {
+  bindEvents();
+  const telegram = window.Telegram?.WebApp;
+  if (telegram) {
+    telegram.ready();
+    telegram.expand();
+  }
+  let token = getStoredToken();
+  if (!token) {
+    const telegramId = telegram?.initDataUnsafe?.user?.id;
+    if (telegramId) {
+      $("#auth-status").textContent = "Восстанавливаем вход через Telegram…";
+      try {
+        token = await fetchTelegramToken(telegramId);
+        if (token) saveToken(token);
+      } catch (error) {
+        if (error.status !== 404) $("#auth-status").textContent = error.message;
+      }
+    }
+  }
+  if (!token) {
+    showAuth();
+    return;
+  }
+  $("#auth-status").textContent = "Проверяем сохранённую сессию…";
+  try {
+    const user = await apiRequest("/auth/me", { token });
+    await finishAuth({ access_token: token, user });
+  } catch (error) {
+    saveToken("");
+    showAuth(error.status === 401 ? "Сессия истекла. Войдите снова." : error.message);
+  }
+}
+
+document.addEventListener("DOMContentLoaded", init);
+
+// Удобно проверить адрес API в консоли без вывода токена.
+console.info(`Айталай API: ${API_URL}`);

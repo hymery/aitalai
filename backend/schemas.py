@@ -169,3 +169,17 @@ class BotStateResponse(ORMModel):
     state: str
     data: dict
     updated_at: datetime
+
+
+class CourseComplete(BaseModel):
+    unit_id: int = Field(gt=0)
+    lesson_id: int = Field(gt=0)
+    lesson_type: Literal["flashcards", "practice", "boss"]
+
+
+class CourseProgressResponse(ORMModel):
+    unit_id: int
+    lesson_id: int
+    lesson_type: Literal["flashcards", "practice", "boss"]
+    xp_awarded: int
+    completed_at: datetime

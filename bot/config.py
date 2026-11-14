@@ -23,7 +23,7 @@ class Config:
     webapp_url: str | None = None
     webapp_host: str = "0.0.0.0"
     webapp_port: int = 8080
-    webapp_dir: Path = BASE_DIR / "webapp"
+    webapp_dir: Path = BASE_DIR.parent / "frontend"
     reminder_enabled: bool = True
     reminder_time: str = "09:00"
     users_file: Path = BASE_DIR / "users.json"
@@ -103,7 +103,7 @@ def load_config() -> Config:
         webapp_port = 8080
 
     webapp_dir = Path(
-        (os.getenv("WEBAPP_DIR") or "").strip() or (BASE_DIR / "webapp")
+        (os.getenv("WEBAPP_DIR") or "").strip() or (BASE_DIR.parent / "frontend")
     )
     if not webapp_dir.is_absolute():
         webapp_dir = BASE_DIR / webapp_dir

@@ -1,0 +1,13 @@
+.git
+.gitignore
+**/.env
+**/.venv
+**/__pycache__
+**/*.pyc
+**/*.log
+**/node_modules
+**/dist
+**/users.json
+**/*.db
+README.md
+CHECKPOINT_AND_PITCH.md

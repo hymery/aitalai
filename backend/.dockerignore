@@ -1,7 +1,8 @@
+.env
 .venv
 .venv-check
 __pycache__
 *.pyc
+*.log
 *.db
-app.log
 .git

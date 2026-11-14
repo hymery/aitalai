@@ -40,6 +40,7 @@ const state = {
   task: null,
   taskResult: null,
   taskSubmitting: false,
+  taskEditing: false,
   ratingTab: "students",
   ratingPeriod: "all",
   me: null,
@@ -53,14 +54,23 @@ const state = {
 const MOCK = {
   task: {
     fragment_id: 1,
+    translation_id: 1,
     text_ba: "Һаумыһығыҙ",
     translation: "Здравствуйте",
     lang_pair: "ba-ru",
-    source: { file: "test.txt", chapter: "1", time: null },
+    source: { file: "test.txt", chapter: "1", time: "00:00:05" },
   },
-  submit: { points_earned: 10, total_points: 100, level: 2 },
+  submit: {
+    answer: { points_earned: 10 },
+    points: 110,
+    level: 2,
+    consensus_status: "confirmed",
+    message: "Перевод подтверждён.",
+    badges: ["first_answer"],
+  },
   me: {
     full_name: "Тест",
+    role: "student",
     points: 100,
     level: 2,
     streak_days: 3,
@@ -211,6 +221,7 @@ function sourceText(source) {
   const parts = [];
   if (source.file) parts.push(source.file);
   if (source.chapter) parts.push(`глава ${source.chapter}`);
+  if (source.time) parts.push(source.time);
   return parts.join(" · ");
 }
 
@@ -257,11 +268,16 @@ async function mockRequest(path, method, body) {
     return clone(MOCK.task);
   }
   if (route === "/tasks/submit" && method === "POST") {
-    const correct = body && body.is_correct !== false;
+    const correct = !body || body.is_correct !== false;
+    const earned = correct ? 10 : 15;
     return {
       ...clone(MOCK.submit),
-      points_earned: correct ? MOCK.submit.points_earned : 0,
-      is_correct: correct,
+      answer: { points_earned: earned },
+      points: MOCK.me.points + earned,
+      consensus_status: correct ? "confirmed" : "expert_review",
+      message: correct
+        ? "Перевод подтверждён."
+        : "Исправление отправлено на экспертную проверку.",
     };
   }
   if (route === "/auth/me" && method === "GET") {
@@ -369,6 +385,7 @@ async function loadTask(force = false) {
   try {
     state.task = await request("/tasks/daily");
     state.taskResult = null;
+    state.taskEditing = false;
     renderTask();
   } catch (error) {
     state.task = null;
@@ -397,17 +414,41 @@ function renderTask() {
   card.append(translation);
 
   const actions = el("div", "actions");
-  const correct = button("✅ Верно", "btn btn-primary", () => submitTask(true));
-  const fix = button("✏️ Исправить", "btn btn-outline", () => submitTask(false));
-  if (state.taskResult || state.taskSubmitting) {
-    correct.disabled = true;
-    fix.disabled = true;
+  if (state.taskEditing && !state.taskResult) {
+    const field = el("label", "field");
+    field.append(el("span", "", "Ваш правильный перевод"));
+    const input = el("textarea", "", task.translation || "");
+    input.id = "task-correction";
+    input.rows = 3;
+    field.append(input);
+    card.append(field);
+    const submit = button("Отправить исправление", "btn btn-primary", () =>
+      submitTask(false, input.value)
+    );
+    const cancel = button("Отмена", "btn btn-outline", () => {
+      state.taskEditing = false;
+      renderTask();
+    });
+    submit.disabled = state.taskSubmitting;
+    cancel.disabled = state.taskSubmitting;
+    actions.append(submit, cancel);
+  } else {
+    const correct = button("Верно · +10 XP", "btn btn-primary", () => submitTask(true));
+    const fix = button("Исправить · +15 XP", "btn btn-outline", () => {
+      state.taskEditing = true;
+      renderTask();
+    });
+    if (state.taskResult || state.taskSubmitting) {
+      correct.disabled = true;
+      fix.disabled = true;
+    }
+    actions.append(correct, fix);
   }
-  actions.append(correct, fix);
   card.append(actions);
 
   if (state.taskResult) {
     card.append(renderTaskResult(state.taskResult));
+    card.append(button("Следующее задание", "btn btn-outline", () => loadTask(true)));
   }
 
   body.replaceChildren(card);
@@ -415,32 +456,24 @@ function renderTask() {
 
 function renderTaskResult(result) {
   const box = el("div", result.isCorrect ? "result" : "result is-fix");
-  if (result.isCorrect) {
-    box.append(el("p", "result-title", `+${formatNumber(result.points)} очков!`));
-    const note = [];
-    if (result.total != null) note.push(`Всего: ${formatNumber(result.total)}`);
-    if (result.level != null) note.push(`Уровень ${formatNumber(result.level)}`);
-    if (note.length) box.append(el("p", "result-note", note.join(" · ")));
-  } else {
-    box.append(el("p", "result-title", "Правильный перевод"));
-    box.append(el("p", "result-note", result.translation || "—"));
-    if (result.total != null) {
-      box.append(
-        el(
-          "p",
-          "result-note",
-          `Исправление сохранено · Всего: ${formatNumber(result.total)}`
-        )
-      );
-    } else {
-      box.append(el("p", "result-note", "Исправление сохранено."));
-    }
+  box.append(el("p", "result-title", `+${formatNumber(result.points)} очков!`));
+  const note = [];
+  if (result.total != null) note.push(`Всего: ${formatNumber(result.total)}`);
+  if (result.level != null) note.push(`Уровень ${formatNumber(result.level)}`);
+  if (note.length) box.append(el("p", "result-note", note.join(" · ")));
+  if (!result.isCorrect) {
+    box.append(el("p", "result-note", `Исправление сохранено: ${result.translation || "—"}`));
   }
   return box;
 }
 
-async function submitTask(isCorrect) {
+async function submitTask(isCorrect, correctedTranslation = "") {
   if (!state.task || state.taskSubmitting || state.taskResult) return;
+  const translation = isCorrect ? state.task.translation : correctedTranslation.trim();
+  if (!translation) {
+    showToast("Введите исправленный перевод.");
+    return;
+  }
 
   state.taskSubmitting = true;
   renderTask();
@@ -450,22 +483,20 @@ async function submitTask(isCorrect) {
       method: "POST",
       body: {
         fragment_id: state.task.fragment_id,
-        translation: state.task.translation,
+        translation,
         is_correct: isCorrect,
       },
     });
 
     state.taskResult = {
       isCorrect,
-      points: Number(response && response.points_earned) || 0,
-      total: response ? response.total_points : null,
+      points: Number(response && response.answer && response.answer.points_earned) || 0,
+      total: response ? response.points : null,
       level: response ? response.level : null,
-      translation: state.task.translation,
+      translation,
     };
-
-    if (isCorrect) {
-      showToast(`+${formatNumber(state.taskResult.points)} очков!`);
-    }
+    state.taskEditing = false;
+    showToast(`+${formatNumber(state.taskResult.points)} очков!`);
   } catch (error) {
     showToast(error.message);
   } finally {
@@ -545,7 +576,12 @@ function ratingMetric(tabId, item) {
     case "accuracy":
       return { main: `${formatNumber(item.accuracy)}%`, sub: "точность" };
     case "vocabulary": {
-      const words = item.words != null ? item.words : item.vocabulary;
+      const words =
+        item.unique_translations != null
+          ? item.unique_translations
+          : item.words != null
+            ? item.words
+            : item.vocabulary;
       return {
         main: formatNumber(words),
         sub: plural(words, "слово", "слова", "слов"),
@@ -671,6 +707,13 @@ function renderProfile() {
 function prefillTeacherForm() {
   const me = state.me;
   if (!me) return;
+  const allowed = ["teacher", "expert", "admin"].includes(me.role);
+  const teacherNav = $('[data-nav="teacher"]');
+  if (teacherNav) teacherNav.classList.toggle("hidden", !allowed);
+  if (!allowed && currentScreen() === "teacher") {
+    location.hash = "profile";
+    return;
+  }
   const schoolInput = $("#report-school");
   const classInput = $("#report-class");
   if (schoolInput && !schoolInput.value && me.school) {
@@ -698,7 +741,7 @@ async function loadReport(event) {
     state.report = await request(
       `/teacher/class-report?school=${encodeURIComponent(
         school
-      )}&class=${encodeURIComponent(className)}`
+      )}&class_name=${encodeURIComponent(className)}`
     );
     renderReport();
   } catch (error) {

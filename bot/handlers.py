@@ -48,8 +48,8 @@ class UserStates(StatesGroup):
 GRADE_RE = re.compile(r"^(\d{1,2})\s*([А-Яа-яA-Za-z]?)$")
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]{2,}$")
 
-MIN_PASSWORD = 6
-MAX_PASSWORD = 128
+MIN_PASSWORD = 4
+MAX_PASSWORD = 72
 
 WELCOME_TEXT = (
     "👋 <b>Добро пожаловать в языковую школу!</b>\n\n"
@@ -364,6 +364,8 @@ async def complete_registration(
         "email": email,
         "password": password,
         "full_name": full_name,
+        "role": "student",
+        "telegram_id": telegram_id,
         "school": school,
         "class_name": grade,
         "lang_pair": "ba-ru",

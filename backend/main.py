@@ -31,13 +31,15 @@ from sqlalchemy.orm import Session
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from database import Base, engine, get_db
-from models import Answer, Badge, BotState, Fragment, Translation, User
+from models import Answer, Badge, BotState, CourseProgress, Fragment, Translation, User
 from schemas import (
     AnswerCreate,
     AnswerResponse,
     AuthResponse,
     BotStateCreate,
     BotStateResponse,
+    CourseComplete,
+    CourseProgressResponse,
     DailyTaskResponse,
     ModerationResolve,
     TelegramAuth,
@@ -1062,6 +1064,97 @@ def export_translations(
 
 
 @app.get(
+    "/course/progress",
+    response_model=list[CourseProgressResponse],
+    tags=["Курс"],
+    summary="Получить прогресс по учебной карте",
+)
+def course_progress(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return (
+        db.query(CourseProgress)
+        .filter(CourseProgress.user_id == user.id)
+        .order_by(CourseProgress.unit_id, CourseProgress.lesson_id)
+        .all()
+    )
+
+
+@app.post(
+    "/course/complete",
+    tags=["Курс"],
+    summary="Завершить урок и начислить XP один раз",
+)
+def complete_course_lesson(
+    payload: CourseComplete,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    existing = (
+        db.query(CourseProgress)
+        .filter(
+            CourseProgress.user_id == user.id,
+            CourseProgress.unit_id == payload.unit_id,
+            CourseProgress.lesson_id == payload.lesson_id,
+        )
+        .first()
+    )
+    if existing:
+        return {
+            "already_completed": True,
+            "awarded_xp": 0,
+            "points": user.points,
+            "level": user.level,
+            "progress": CourseProgressResponse.model_validate(existing),
+        }
+
+    awarded_xp = {"flashcards": 10, "practice": 30, "boss": 100}[
+        payload.lesson_type
+    ]
+    progress = CourseProgress(
+        user_id=user.id,
+        unit_id=payload.unit_id,
+        lesson_id=payload.lesson_id,
+        lesson_type=payload.lesson_type,
+        xp_awarded=awarded_xp,
+    )
+    db.add(progress)
+    user.points += awarded_xp
+    user.level = user.points // 100 + 1
+    award_badges(db, user)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        existing = (
+            db.query(CourseProgress)
+            .filter(
+                CourseProgress.user_id == user.id,
+                CourseProgress.unit_id == payload.unit_id,
+                CourseProgress.lesson_id == payload.lesson_id,
+            )
+            .first()
+        )
+        return {
+            "already_completed": True,
+            "awarded_xp": 0,
+            "points": user.points,
+            "level": user.level,
+            "progress": CourseProgressResponse.model_validate(existing),
+        }
+    db.refresh(progress)
+    db.refresh(user)
+    return {
+        "already_completed": False,
+        "awarded_xp": awarded_xp,
+        "points": user.points,
+        "level": user.level,
+        "progress": CourseProgressResponse.model_validate(progress),
+    }
+
+
+@app.get(
     "/bot/state/{telegram_id}",
     response_model=BotStateResponse,
     tags=["Бот"],
@@ -1100,6 +1193,7 @@ def save_bot_state(payload: BotStateCreate, db: Session = Depends(get_db)):
     return state
 
 
+@app.get("/health", tags=["Сервис"], summary="Проверка доступности API")
 @app.get(
     "/",
     tags=["Сервис"],
