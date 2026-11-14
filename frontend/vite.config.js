@@ -11,6 +11,25 @@ export default defineConfig(({ mode }) => {
     server: {
       host: "0.0.0.0",
       port: 5173,
+      allowedHosts: [
+        ".loca.lt",
+        ".lhr.life",
+        ".trycloudflare.com",
+        ".serveousercontent.com",
+        ".tuna.am",
+      ],
+    },
+    preview: {
+      host: "0.0.0.0",
+      port: 5174,
+      allowedHosts: [".serveousercontent.com", ".tuna.am"],
+      proxy: {
+        "/api": {
+          target: "http://localhost:8000",
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, ""),
+        },
+      },
     },
   };
 });

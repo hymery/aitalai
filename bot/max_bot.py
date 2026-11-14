@@ -10,6 +10,7 @@ import asyncio
 import json
 import logging
 import os
+import ssl
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -101,9 +102,18 @@ class MaxBot:
     @property
     def session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
+            ssl_context = ssl.create_default_context()
+            ca_bundle = Path(
+                os.getenv("MAX_CA_BUNDLE")
+                or BASE_DIR.parent / "tools" / "certs" / "russiantrustedca.pem"
+            )
+            if ca_bundle.is_file():
+                ssl_context.load_verify_locations(cafile=str(ca_bundle))
+            connector = aiohttp.TCPConnector(ssl=ssl_context)
             self._session = aiohttp.ClientSession(
                 timeout=aiohttp.ClientTimeout(total=45),
                 headers={"Authorization": self.token, "Accept": "application/json"},
+                connector=connector,
             )
         return self._session
 

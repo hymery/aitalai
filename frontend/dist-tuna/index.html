@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1176C8">
+  <meta name="description" content="Интерактивная школа башкирского языка: карточки, игровые уроки, народные переводы и рейтинги.">
+  <title>Айталай — Башкирская языковая школа</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%231176C8'/%3E%3Cpath d='M32 10 38 24 52 20 44 32 52 44 38 40 32 54 26 40 12 44 20 32 12 20 26 24Z' fill='%23F2B705'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <script src="telegram-web-app.js"></script>
+  <script type="module" crossorigin src="/assets/index-DfTQNs5S.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-B4CUoyM7.css">
+</head>
+<body>
+  <svg xmlns="http://www.w3.org/2000/svg" class="svg-defs" aria-hidden="true">
+    <symbol id="i-home" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11.5 12 4l8.5 7.5"/><path d="M5.5 10.5V20a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-9.5"/><path d="M9.5 21v-6h5v6"/></g></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></g></symbol>
+    <symbol id="i-cup" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0Z"/><path d="M8 6H5v1a4 4 0 0 0 4 4"/><path d="M16 6h3v1a4 4 0 0 1-4 4"/><path d="M12 13v4M9 21h6M10 17h4v4h-4z"/></g></symbol>
+    <symbol id="i-trophy" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0Z"/><path d="M8 6H5v1a4 4 0 0 0 4 4M16 6h3v1a4 4 0 0 1-4 4M12 13v4M9 21h6M10 17h4v4h-4z"/></g></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7ZM10 20h4"/></g></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></g></symbol>
+    <symbol id="i-school" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-6 9 6-9 6-9-6ZM6 12.5V19h12v-6.5M9 19v-4h6v4"/></g></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></g></symbol>
+    <symbol id="i-telegram" viewBox="0 0 24 24"><path d="m3 11 17-7-6 16-4-6-7-3Zm7 3 10-10M10 14v5l3-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h5a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-5M4 12h11m-4-4 4 4-4 4"/></g></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></g></symbol>
+    <symbol id="i-profile" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20.5c0-4.1 3.4-6.5 7.5-6.5s7.5 2.4 7.5 6.5"/></g></symbol>
+    <symbol id="i-flame" viewBox="0 0 24 24"><path fill="var(--orange-500, #F28C1B)" d="M12 1.8c1.1 4.6 6.2 6.2 6.2 11.3a6.4 6.4 0 0 1-12.8 0c0-3.7 2.8-7.1 6.6-11.3Z"/><path fill="var(--gold-500, #F2B705)" d="M12 8.3c.7 2.8 3.5 4.1 3.5 6.8a3.6 3.6 0 0 1-7.1 0c0-2.2 1.5-4.2 3.6-6.8Z"/><path fill="var(--gold-50, #FEF7E0)" d="M10.2 14.2c.7.4 1.1 1 1.1 1.7a1.3 1.3 0 0 1-2.6 0c0-.7.5-1.3 1.5-1.7Z"/></symbol>
+    <symbol id="i-honey" viewBox="0 0 24 24"><path fill="var(--gold-600, #C99500)" d="m12 3 8.2 4.7a2 2 0 0 1 1 1.7v8.2a2 2 0 0 1-1 1.7L12 24l-8.2-4.7a2 2 0 0 1-1-1.7V9.4a2 2 0 0 1 1-1.7Z"/><path fill="var(--gold-500, #F2B705)" d="m12 1 8.2 4.7a2 2 0 0 1 1 1.7v8.2a2 2 0 0 1-1 1.7L12 22l-8.2-4.7a2 2 0 0 1-1-1.7V7.4a2 2 0 0 1 1-1.7Z"/></symbol>
+    <symbol id="i-feather" viewBox="0 0 24 24"><path d="M20.5 3.5c-5.5-2-11.8 2-13.3 7.7-.7 2.7.2 4.5 1.3 5.7L3 21.5m5.5-4.6h5.3c5.8 0 8.8-8.2 6.7-13.4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="m8 15 8-8m-4.5 4.5H16m-6 1.5v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-stamp" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="m7 12 3.2 3.2L17.5 8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path fill="var(--red-600, #C2363B)" d="M12 21.2 3.6 13A5.8 5.8 0 0 1 12 4.8 5.8 5.8 0 0 1 20.4 13Z"/><path fill="var(--red-500, #E5484D)" d="M12 19.2 3.6 11A5.8 5.8 0 0 1 12 2.8 5.8 5.8 0 0 1 20.4 11Z"/></symbol>
+    <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m4.5 12.5 5 5L20 6.5"/></g></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 6 12 12M18 6 6 18"/></g></symbol>
+    <symbol id="i-pencil" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1.2-5L16.8 3.4a2.2 2.2 0 0 1 3.1 3.1L8.3 18.8 4 20Z"/><path d="m14.5 5.7 3.8 3.8"/></g></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></g></symbol>
+    <symbol id="i-crown" viewBox="0 0 24 24"><path fill="currentColor" d="M5 19h14a1 1 0 0 0 1-1v-1a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1zm14.5-9.5-3.5 3-4-7-4 7-3.5-3L3 14h18l-1.5-4.5z"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path fill="currentColor" d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></symbol>
+    <symbol id="i-volume" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15 9a4 4 0 0 1 0 6M18 6a8 8 0 0 1 0 12"/></g></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m-5-5 5 5 5-5M4 20h16"/></g></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5.5c0 4.8 3.2 8 7.5 9.5 4.3-1.5 7.5-4.7 7.5-9.5V6L12 3Z"/><path d="m8.5 12 2.2 2.2 4.8-5"/></g></symbol>
+    <symbol id="i-arrow-left" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7"/></g></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path fill="currentColor" d="M12 1c.6 6.4 4.6 10.4 11 11-6.4.6-10.4 4.6-11 11-.6-6.4-4.6-10.4-11-11C7.4 11.4 11.4 7.4 12 1Z"/></symbol>
+    <symbol id="kurai" viewBox="0 0 32 32"><g fill="currentColor"><path d="M16 13 20.5 6.5 16 1 11.5 6.5Z"/><path d="M16 13 20.5 6.5 16 1 11.5 6.5Z" transform="rotate(45 16 16)"/><path d="M16 13 20.5 6.5 16 1 11.5 6.5Z" transform="rotate(90 16 16)"/><path d="M16 13 20.5 6.5 16 1 11.5 6.5Z" transform="rotate(135 16 16)"/><path d="M16 13 20.5 6.5 16 1 11.5 6.5Z" transform="rotate(180 16 16)"/><path d="M16 13 20.5 6.5 16 1 11.5 6.5Z" transform="rotate(225 16 16)"/><path d="M16 13 20.5 6.5 16 1 11.5 6.5Z" transform="rotate(270 16 16)"/><path d="M16 13 20.5 6.5 16 1 11.5 6.5Z" transform="rotate(315 16 16)"/><circle cx="16" cy="16" r="2.8"/></g></symbol>
+    <symbol id="flag-ba" viewBox="0 0 32 32"><circle cx="16" cy="16" r="15" fill="#fff" stroke="#E3E7EC"/><clipPath id="circle-clip"><circle cx="16" cy="16" r="15"/></clipPath><g clip-path="url(#circle-clip)"><rect width="32" height="10.6" fill="#1176C8"/><rect y="10.6" width="32" height="10.6" fill="#fff"/><rect y="21.2" width="32" height="10.8" fill="#2BA84A"/><circle cx="16" cy="16" r="4.5" fill="none" stroke="#F2B705" stroke-width=".8"/><circle cx="16" cy="16" r="1.2" fill="#F2B705"/></g></symbol>
+  </svg>
+
+  <section id="auth-screen" class="auth-shell">
+    <div class="auth-ornament" aria-hidden="true"></div>
+    <div class="auth-panel">
+      <div class="auth-brand">
+        <div class="stage stage--auth"><div class="mascot-crop" style="--mw:240px;--mh:200px"><img src="characters/boy_idle.webp" alt="" width="240" height="240" class="auth-mascot stage__mascot" draggable="false"></div><div class="cloud cloud--ba" lang="ba">Сәләм!</div></div>
+        <h1>Айталай</h1>
+        <p lang="ba">Башҡортса — һәйбәт!</p>
+      </div>
+
+      <div class="auth-switch" role="tablist" aria-label="Авторизация">
+        <button id="auth-show-login" class="is-active" type="button" role="tab" aria-selected="true">Вход</button>
+        <button id="auth-show-register" type="button" role="tab" aria-selected="false">Регистрация</button>
+      </div>
+
+      <form id="login-form" class="auth-form">
+        <label class="field"><span class="label">Email</span><input class="input" name="email" type="email" autocomplete="email" required placeholder="you@example.com"></label>
+        <label class="field"><span class="label">Пароль</span><input class="input" name="password" type="password" autocomplete="current-password" required minlength="4" maxlength="72" placeholder="Ваш пароль"></label>
+        <button class="btn btn-primary btn-lg btn-block" type="submit">Войти</button>
+      </form>
+
+      <form id="register-form" class="auth-form" hidden>
+        <label class="field"><span class="label">Имя и фамилия</span><input class="input" name="full_name" autocomplete="name" required maxlength="255" placeholder="Айгуль Юлдашева"></label>
+        <label class="field"><span class="label">Email</span><input class="input" name="email" type="email" autocomplete="email" required placeholder="you@example.com"></label>
+        <label class="field"><span class="label">Пароль</span><input class="input" name="password" type="password" autocomplete="new-password" required minlength="4" maxlength="72" placeholder="Минимум 4 символа"></label>
+        <div class="auth-form__row">
+          <label class="field"><span class="label">Школа</span><input class="input" id="register-school" name="school" list="school-directory" maxlength="255" autocomplete="off" placeholder="Начните вводить название"><datalist id="school-directory"><option value="МАОУ «БЛИ №3» г. Стерлитамак"></option><option value="МБОУ СОШ №12 г. Уфа"></option></datalist><span class="field__hint">Выберите школу из справочника</span></label>
+          <label class="field"><span class="label">Класс</span><input class="input" name="class_name" maxlength="50" placeholder="7А"></label>
+        </div>
+        <label class="field"><span class="label">Роль</span><select class="input" name="role"><option value="student">Ученик</option><option value="teacher">Учитель</option><option value="expert">Эксперт УФИЦ РАН</option></select></label>
+        <button class="btn btn-primary btn-lg btn-block" type="submit">Создать профиль</button>
+      </form>
+
+      <p id="auth-status" class="form-status" role="status" aria-live="polite"></p>
+
+      <details class="demo-access">
+        <summary>Демо-вход</summary>
+        <span>Выберите роль. Пароль для демонстрации: 1234.</span>
+        <div class="demo-access__grid">
+          <button class="btn btn-ghost" type="button" data-demo-email="aigul@example.com">Ученик</button>
+          <button class="btn btn-ghost" type="button" data-demo-email="teacher@example.com">Учитель</button>
+          <button class="btn btn-ghost" type="button" data-demo-email="admin@example.com">Эксперт</button>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <div id="app-shell" class="duo-shell" hidden>
+    <header class="duo-topbar">
+      <div class="duo-flag-pill" aria-label="Башкирский и русский"><svg class="duo-flag" aria-hidden="true"><use href="#flag-ba"></use></svg></div>
+      <div class="duo-brand" lang="ba">Әйтәләй</div>
+      <div class="desktop-page-title" id="desktop-page-title">Курс</div>
+      <div class="topbar-stats">
+        <div class="duo-stat-pill stat-pill stat-pill--streak" title="Серия дней"><svg class="icon stat-flame" aria-hidden="true"><use href="#i-flame"></use></svg><span id="top-streak">0</span></div>
+        <div class="duo-stat-pill stat-pill stat-pill--points" title="Очки"><svg class="icon stat-honey" aria-hidden="true"><use href="#i-honey"></use></svg><span id="top-points">0</span></div>
+        <div class="duo-stat-pill stat-pill stat-pill--hearts" id="top-hearts-wrap" title="Жизни в текущем уроке"><svg class="icon top-heart" aria-hidden="true"><use href="#i-heart"></use></svg><span id="top-hearts">5</span></div>
+      </div>
+    </header>
+    <div class="ornament-strip" aria-hidden="true"></div>
+
+    <main class="duo-content">
+      <section id="screen-course" class="screen"><div id="course-content" class="path-container"></div></section>
+
+      <section id="screen-community" class="screen" hidden>
+        <div class="community-panel">
+          <div class="community-head"><div class="screen-heading"><h2>Китапхана переводов</h2></div></div>
+          <label class="field dictionary-search"><span class="sr-only">Поиск по словарю</span><span class="dictionary-search__box"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2.3"></circle><path d="m16 16 5 5" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"></path></svg><input id="dictionary-search" class="input" type="search" autocomplete="off" placeholder="Слово или фраза"></span></label>
+        </div>
+        <div id="dictionary-results" class="dictionary-results" aria-live="polite"></div>
+        <div id="community-library" class="library-shelf">
+          <span id="library-streak" hidden>0</span>
+          <div class="library-scene"><div class="mascot-crop mascot-crop--librarian" data-facing="right"><div class="character stage__mascot" data-char="boy" data-state="idle" data-emotion="idle" aria-hidden="true"><img class="character__img" src="characters/boy_idle.webp" width="220" height="220" alt="" draggable="false"></div></div><div class="cloud">Выбери книгу</div></div>
+          <div class="bookcase"><div class="book-shelf">
+            <button class="book book--blue" type="button" data-community-mode="verify" aria-label="Открыть книгу Проверка" aria-expanded="false"><span class="book__body"><span class="book__bookmark" aria-hidden="true"></span><span class="book__inside" aria-hidden="true"></span><span class="book__front book__cover"><span class="book__spine" aria-hidden="true"></span><span class="book__emboss"><svg class="icon" aria-hidden="true"><use href="#i-stamp"></use></svg></span><strong>Проверка</strong><small>Пять фраз на сегодня</small></span></span></button>
+            <button class="book book--green" type="button" data-community-mode="propose" aria-label="Открыть книгу Предложить" aria-expanded="false"><span class="book__body"><span class="book__bookmark" aria-hidden="true"></span><span class="book__inside" aria-hidden="true"></span><span class="book__front book__cover"><span class="book__spine" aria-hidden="true"></span><span class="book__emboss"><svg class="icon" aria-hidden="true"><use href="#i-feather"></use></svg></span><strong>Предложить</strong><small>Добавь свою фразу</small></span></span></button>
+          </div></div>
+        </div>
+        <div id="community-workspace" class="book-workspace" hidden>
+          <span class="book-workspace__cover" aria-hidden="true"></span>
+          <button class="btn btn-ghost btn-icon book-close" type="button" data-community-close aria-label="Закрыть книгу"><svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg></button>
+          <div id="community-verify" class="book-spread" role="region" aria-label="Проверка переводов" hidden><div id="daily-body" aria-live="polite"></div></div>
+          <div id="community-propose" class="book-spread" role="region" aria-label="Предложить фразу" hidden>
+            <form id="proposal-form" class="role-form proposal-form">
+              <div class="proposal-page" data-proposal-page="1"><h3>Что предлагаешь?</h3><div class="proposal-kinds">
+                <button class="tile" type="button" data-proposal-kind="word">Слово</button><button class="tile" type="button" data-proposal-kind="phrase">Словосочетание</button><button class="tile" type="button" data-proposal-kind="sentence">Предложение</button><button class="tile" type="button" data-proposal-kind="proverb">Пословица / поговорка</button><button class="tile" type="button" data-proposal-kind="idiom">Идиома</button>
+              </div></div>
+              <div class="proposal-page" data-proposal-page="2" hidden><h3>Текст и перевод</h3><label class="field"><span class="label">Башкирский текст</span><textarea id="proposal-ba" class="input textarea" name="text_ba" lang="ba" rows="4" minlength="2" maxlength="200" required></textarea><span id="proposal-ba-count" class="field__hint">0/200</span></label><label class="field"><span class="label">Перевод</span><textarea id="proposal-ru" class="input textarea" name="translation" rows="4" minlength="2" maxlength="200" required></textarea><span id="proposal-ru-count" class="field__hint">0/200</span></label></div>
+              <div class="proposal-page" data-proposal-page="3" hidden><h3>Сортировка</h3><div class="proposal-group"><span class="label">Стиль / регистр</span><div class="chip-cloud" data-proposal-group="register"><button class="chip is-selected" type="button" data-value="literary">Литературный</button><button class="chip" type="button" data-value="colloquial">Разговорный</button><button class="chip" type="button" data-value="slang">Сленг</button><button class="chip" type="button" data-value="vernacular">Просторечие</button><button class="chip" type="button" data-value="bookish">Книжный</button><button class="chip" type="button" data-value="obsolete">Устаревший</button><button class="chip" type="button" data-value="childlike">Детский</button></div></div>
+                <div class="proposal-group"><span class="label">Темы · <span id="proposal-topics-count">0/3</span></span><div class="chip-cloud chip-cloud--scroll" data-proposal-group="topics" data-multi="true"><button class="chip" type="button" data-value="food">Еда</button><button class="chip" type="button" data-value="family">Семья</button><button class="chip" type="button" data-value="home">Дом</button><button class="chip" type="button" data-value="nature">Природа</button><button class="chip" type="button" data-value="animals">Животные</button><button class="chip" type="button" data-value="weather">Погода</button><button class="chip" type="button" data-value="time">Время и числа</button><button class="chip" type="button" data-value="school">Школа</button><button class="chip" type="button" data-value="clothes">Одежда</button><button class="chip" type="button" data-value="health">Здоровье</button><button class="chip" type="button" data-value="work">Работа</button><button class="chip" type="button" data-value="transport">Транспорт</button><button class="chip" type="button" data-value="holidays">Праздники и обряды</button><button class="chip" type="button" data-value="folklore">Фольклор</button><button class="chip" type="button" data-value="emotions">Эмоции</button><button class="chip" type="button" data-value="other">Другое</button></div></div>
+                <div class="proposal-group" id="proposal-pos-group" hidden><span class="label">Часть речи</span><div class="chip-cloud chip-cloud--scroll" data-proposal-group="pos"><button class="chip" type="button" data-value="noun">Существительное</button><button class="chip" type="button" data-value="verb">Глагол</button><button class="chip" type="button" data-value="adjective">Прилагательное</button><button class="chip" type="button" data-value="adverb">Наречие</button><button class="chip" type="button" data-value="pronoun">Местоимение</button><button class="chip" type="button" data-value="numeral">Числительное</button><button class="chip" type="button" data-value="function">Служебное</button></div></div>
+                <div class="proposal-group"><span class="label">Диалект / говор</span><div class="chip-cloud" data-proposal-group="dialect"><button class="chip" type="button" data-value="literary">Литературный</button><button class="chip" type="button" data-value="southern">Южный</button><button class="chip" type="button" data-value="eastern">Восточный</button><button class="chip" type="button" data-value="northwest">Северо-западный</button><button class="chip is-selected" type="button" data-value="unknown">Не знаю</button></div></div>
+              </div>
+              <div class="proposal-page" data-proposal-page="4" hidden><h3>Детали</h3><label class="field"><span class="label">Пример употребления · необязательно</span><textarea id="proposal-example" class="input textarea" rows="3" maxlength="300"></textarea></label><div class="proposal-group"><span class="label">Где услышал(а)?</span><div class="chip-cloud" data-proposal-group="source_kind"><button class="chip" type="button" data-value="family">От семьи</button><button class="chip" type="button" data-value="book">Из книги</button><button class="chip" type="button" data-value="internet">Из интернета</button><button class="chip" type="button" data-value="street">Из речи на улице</button><button class="chip" type="button" data-value="other">Другое</button></div></div></div>
+              <div class="proposal-nav"><button class="btn btn-ghost" id="proposal-prev" type="button" disabled><svg class="icon" aria-hidden="true"><use href="#i-arrow-left"></use></svg>Назад</button><span id="proposal-step-label" class="proposal-step-label" aria-label="Страница 1 из 4">1 / 4</span><button class="btn btn-primary" id="proposal-next" type="button" disabled>Дальше</button><button class="btn btn-primary" id="proposal-submit" type="submit" disabled hidden>Отправить</button></div>
+              <p id="proposal-status" class="form-status" role="status" aria-live="polite"></p>
+            </form>
+            <div id="proposal-success" class="proposal-success" role="status" hidden><span class="book-stamp">Принято на проверку</span><strong>Спасибо!</strong><p>Фразу проверят другие ученики.</p><button id="proposal-again" class="btn btn-primary btn-block" type="button">Ещё фразу</button></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="screen-ratings" class="screen screen--ratings" hidden>
+        <div class="screen-heading screen-heading--action"><h2>Рейтинг</h2><button id="rating-list-toggle" class="btn btn-ghost btn-sm" type="button" aria-pressed="false">Список</button></div>
+        <div id="rating-categories" class="tabs tabs--fill rating-tabs" role="tablist" aria-label="Категория рейтинга"></div>
+        <div id="rating-school-mode" class="tabs tabs--fill rating-school-mode" role="group" aria-label="Рейтинг внутри школы" hidden><button class="tab is-active" type="button" data-school-mode="students" aria-pressed="true">Ученики</button><button class="tab" type="button" data-school-mode="classes" aria-pressed="false">Классы</button></div>
+        <div id="rating-body" class="rank-list" aria-live="polite"></div>
+        <div id="rating-periods" class="period-chips rating-periods" role="group" aria-label="Период рейтинга"></div>
+      </section>
+
+      <section id="screen-cabinet" class="screen" hidden>
+        <div id="profile-content"></div>
+        <div class="screen-heading cabinet-tools-heading"><h2>Инструменты</h2><p id="cabinet-subtitle">Ваш профиль и настройки.</p></div>
+        <div id="teacher-panel" hidden><form id="teacher-form" class="card role-form"><h3>Отчёт по классу</h3><label class="field"><span class="label">Школа</span><input id="teacher-school" class="input" required></label><label class="field"><span class="label">Класс</span><input id="teacher-class" class="input" required placeholder="7А"></label><button class="btn btn-primary btn-block" type="submit">Сформировать отчёт</button></form><div id="teacher-report" class="section-gap"></div></div>
+        <div id="moderation-panel" class="section-gap" hidden><div class="section-title-row"><div><h3>Модерация УФИЦ РАН</h3><p class="muted">Спорные переводы и распределение голосов.</p></div><button id="moderation-refresh" class="btn btn-ghost btn-icon" type="button" aria-label="Обновить список"><svg class="icon" aria-hidden="true"><use href="#i-shield"></use></svg></button></div><div id="moderation-list" class="section-gap"></div></div>
+      </section>
+    </main>
+
+    <nav class="duo-bottom-nav" aria-label="Основная навигация">
+      <div class="desktop-brand"><svg aria-hidden="true"><use href="#kurai"></use></svg><div><strong lang="ba">Әйтәләй</strong><span>Башкирская языковая школа</span></div></div>
+      <a class="duo-nav-tab is-active" href="#course" data-tab="course"><svg class="icon" aria-hidden="true"><use href="#i-home"></use></svg><span>Курс</span></a>
+      <a class="duo-nav-tab" href="#community" data-tab="community"><svg class="icon" aria-hidden="true"><use href="#i-book"></use></svg><span>Сообщество</span></a>
+      <a class="duo-nav-tab" href="#ratings" data-tab="ratings"><svg class="icon" aria-hidden="true"><use href="#i-cup"></use></svg><span>Рейтинг</span></a>
+      <a class="duo-nav-tab" href="#cabinet" data-tab="cabinet" id="cabinet-nav"><svg class="icon" aria-hidden="true"><use href="#i-profile"></use></svg><span>Кабинет</span></a>
+      <p class="desktop-nav-motto" lang="ba">Башҡортса — һәйбәт!</p>
+    </nav>
+
+    <aside class="app-rail" aria-label="Сводка">
+      <div class="card rail-stat"><span class="muted">Текущая серия</span><strong><span id="rail-streak">0</span> дней</strong></div>
+      <div class="card"><h3>Задание дня</h3><p class="muted">Проверь народный перевод.</p><button class="btn btn-ghost btn-block" type="button" data-rail-nav="community">Открыть</button></div>
+      <div class="card"><h3>Рейтинг</h3><p class="muted">Сравни свой результат с другими учениками.</p><button class="btn btn-ghost btn-block" type="button" data-rail-nav="ratings">Смотреть</button></div>
+    </aside>
+  </div>
+
+  <div id="modal-lesson" class="duo-modal lesson" role="dialog" aria-modal="true" aria-labelledby="lesson-modal-title" hidden>
+    <div class="duo-modal__header lesson__top">
+      <button class="btn btn-ghost btn-icon" type="button" id="lesson-close" aria-label="Закрыть урок"><svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg></button>
+      <div class="progress" role="progressbar" aria-label="Прогресс урока"><span class="progress__bar" id="lesson-progress-bar"></span></div>
+      <div id="lesson-hearts-wrap" class="modal-hearts"><svg class="icon" aria-hidden="true"><use href="#i-heart"></use></svg><span id="lesson-hearts">5</span></div>
+      <img id="lesson-character-mini" class="lesson__mini-character" src="characters/boy_idle.webp" width="48" height="48" alt="" hidden>
+    </div>
+    <div class="duo-modal__body lesson__body">
+      <div id="lesson-scene" class="lesson-scene"></div>
+      <h2 id="lesson-modal-title" class="lesson__title"></h2>
+      <div id="lesson-step-container" class="lesson__task"></div>
+    </div>
+    <div class="duo-modal__footer lesson__foot" id="lesson-footer"><div id="lesson-feedback-box" class="feedback-sheet__inner" hidden></div><button class="btn btn-primary btn-lg btn-block" type="button" id="lesson-action-btn">Проверить</button></div>
+  </div>
+
+  <div id="modal-boss" class="duo-modal duo-modal--boss lesson" role="dialog" aria-modal="true" aria-labelledby="boss-modal-title" hidden>
+    <div class="duo-modal__header lesson__top">
+      <button class="btn btn-ghost btn-icon" type="button" id="boss-close" aria-label="Закрыть квест"><svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg></button>
+      <div class="progress" role="progressbar" aria-label="Прогресс квеста"><span class="progress__bar" id="boss-progress-bar"></span></div>
+      <span id="boss-step-label" class="boss-step-label">1/5</span>
+    </div>
+    <div class="duo-modal__body lesson__body"><div id="boss-scene" class="lesson-scene"></div><h2 id="boss-modal-title" class="lesson__title"></h2><div id="boss-step-container" class="lesson__task"></div></div>
+    <div class="duo-modal__footer lesson__foot" id="boss-footer"><div id="boss-feedback-box" class="feedback-sheet__inner" hidden></div><button class="btn btn-primary btn-lg btn-block" type="button" id="boss-action-btn">Проверить ответ</button></div>
+  </div>
+
+  <div id="lesson-exit-sheet" class="sheet-backdrop" hidden>
+    <div class="bottom-sheet" role="alertdialog" aria-modal="true" aria-labelledby="lesson-exit-title">
+      <h2 id="lesson-exit-title">Выйти?</h2><p>Прогресс урока не сохранится.</p>
+      <button class="btn btn-success btn-lg btn-block" id="lesson-stay" type="button">Остаться</button>
+      <button class="btn btn-ghost btn-block" id="lesson-exit" type="button">Выйти</button>
+    </div>
+  </div>
+
+  <div id="language-sheet" class="sheet-backdrop" hidden>
+    <div class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="language-sheet-title">
+      <div class="bottom-sheet__head"><h2 id="language-sheet-title">Языковая пара</h2><button class="btn btn-ghost btn-icon" id="language-close" type="button" aria-label="Закрыть"><svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg></button></div>
+      <button class="tile is-selected" type="button" id="language-current">Башкирский ↔ русский</button>
+      <p class="muted">Другие языковые пары появятся позже.</p>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"><svg aria-hidden="true" viewBox="0 0 32 32"><use href="#i-honey"></use></svg><span id="toast-text"></span></div>
+</body>
+</html>

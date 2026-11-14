@@ -18,7 +18,13 @@ from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramNetworkError, TelegramUnauthorizedError
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import BotCommand, CallbackQuery, Message
+from aiogram.types import (
+    BotCommand,
+    CallbackQuery,
+    MenuButtonWebApp,
+    Message,
+    WebAppInfo,
+)
 
 from api import ApiClient, ApiError
 from config import BASE_DIR, Config, load_config
@@ -240,6 +246,13 @@ async def run_bot(config: Config) -> None:
                 BotCommand(command="help", description="Список команд"),
             ]
         )
+        if config.webapp_url and config.webapp_url.startswith("https://"):
+            await bot.set_chat_menu_button(
+                menu_button=MenuButtonWebApp(
+                    text="Открыть Әйтәләй",
+                    web_app=WebAppInfo(url=config.webapp_url),
+                )
+            )
         await bot.delete_webhook(drop_pending_updates=True)
 
         mode = "MOCK" if config.use_mock else "REAL"
