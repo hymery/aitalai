@@ -90,6 +90,24 @@ class DailyTaskResponse(BaseModel):
     source: FragmentSource
 
 
+class FragmentProposal(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    text_ba: str = Field(min_length=2, max_length=200)
+    translation: str = Field(min_length=2, max_length=200)
+    lang_pair: Literal["ba-ru"] = "ba-ru"
+
+
+class FragmentProposalResponse(BaseModel):
+    fragment_id: int
+    translation_id: int
+    awarded_xp: int
+    points: int
+    level: int
+    badges: list[str]
+    message: str
+
+
 class TranslationCreate(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 

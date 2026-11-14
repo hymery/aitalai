@@ -6,7 +6,7 @@ set "ROOT=%~dp0"
 echo [AITALAI] Project root: %ROOT%
 
 rem Backend: activate venv, seed the database, start FastAPI.
-start "AITALAI Backend" /D "%ROOT%backend" cmd.exe /k "call .venv\Scripts\activate.bat && python seed.py && uvicorn main:app --reload --port 8000"
+start "AITALAI Backend" /D "%ROOT%backend" cmd.exe /k "call .venv\Scripts\activate.bat && python seed.py && python build_courses.py && uvicorn main:app --reload --port 8000"
 
 rem Frontend: npm install checks dependencies, then starts Vite.
 start "AITALAI Frontend" /D "%ROOT%frontend" cmd.exe /k "npm install --no-audit --no-fund && npm run dev"

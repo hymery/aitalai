@@ -51,6 +51,19 @@ def login(email):
 def main():
     health = request("GET", "/health")
     assert health["status"] == "работает"
+    preflight = urllib.request.Request(
+        BASE_URL + "/fragments/search?q=test",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "authorization",
+        },
+        method="OPTIONS",
+    )
+    with urllib.request.urlopen(preflight, timeout=10) as response:
+        assert response.status == 200
+        assert response.headers.get("Access-Control-Allow-Origin") == "*"
+    print("OK: health и CORS preflight для поиска по словарю")
 
     accounts = {}
     expected_roles = {
@@ -82,25 +95,34 @@ def main():
         "full_name": "Дубликат",
         "lang_pair": "ba-ru",
     }, expected=409)
-    assert request("GET", "/course/progress", token=student) == []
-    first = request("POST", "/course/complete", token=student, body={
-        "unit_id": 1, "lesson_id": 1, "lesson_type": "flashcards",
-    })
-    assert first["awarded_xp"] == 10 and first["already_completed"] is False
-    repeat = request("POST", "/course/complete", token=student, body={
-        "unit_id": 1, "lesson_id": 1, "lesson_type": "flashcards",
+    units = request("GET", "/courses/units", token=student)
+    assert len(units) == 3 and units[0]["unlocked"] and not units[1]["unlocked"]
+    expected_points = {"circle_1": 20, "circle_2": 40, "circle_3": 60, "boss_story": 100}
+    first = None
+    for unit_index, unit in enumerate(units):
+        detail = request("GET", f"/courses/units/{unit['id']}", token=student)
+        assert len(detail["circle_1"]["cards"]) == 8
+        assert len(detail["circle_1"]["quiz"]) == 8
+        assert len(detail["circle_2"]["build_sentence"]) == 5
+        assert len(detail["circle_3"]["fill_blanks"]) == 4
+        assert len(detail["circle_3"]["match_pairs"]["correct_answer"]) == 8
+        assert len(detail["boss_story"]["steps"]) == 4
+        for circle, points in expected_points.items():
+            result = request("POST", f"/courses/units/{unit['id']}/complete", token=student, body={
+                "circle": circle, "score": 100,
+            })
+            assert result["awarded_xp"] == points and result["already_completed"] is False
+            if first is None:
+                first = result
+        if unit_index < 2:
+            assert result["next_unit_unlocked"] is True
+    repeat = request("POST", f"/courses/units/{units[0]['id']}/complete", token=student, body={
+        "circle": "circle_1", "score": 100,
     })
     assert repeat["awarded_xp"] == 0 and repeat["already_completed"] is True
-    assert repeat["points"] == first["points"]
-    practice = request("POST", "/course/complete", token=student, body={
-        "unit_id": 1, "lesson_id": 2, "lesson_type": "practice",
-    })
-    boss = request("POST", "/course/complete", token=student, body={
-        "unit_id": 1, "lesson_id": 99, "lesson_type": "boss",
-    })
-    assert practice["awarded_xp"] == 30 and boss["awarded_xp"] == 100
-    assert len(request("GET", "/course/progress", token=student)) == 3
-    print("OK: регистрация, конфликт email, прогресс и однократные 10/30/100 XP")
+    final_units = request("GET", "/courses/units", token=student)
+    assert all(unit["progress"]["boss_story"]["completed"] for unit in final_units)
+    print("OK: регистрация, три курса, все этапы, 660 очков и запрет повторного начисления")
 
     daily = request("GET", "/tasks/daily", token=student)
     assert daily["fragment_id"] and daily["translation_id"]
@@ -122,7 +144,29 @@ def main():
     assert corrected["answer"]["points_earned"] == 15
     assert corrected["points"] == before + 25
     assert isinstance(corrected["badges"], list) and corrected["consensus_status"]
-    print("OK: ежедневные задания, answer.points_earned, +10/+15 XP и points")
+    print("OK: ежедневные задания, answer.points_earned, +10/+15 очков и points")
+
+    found = request("GET", f"/fragments/search?{urllib.parse.urlencode({'q': daily['text_ba'], 'limit': 20})}", token=student)
+    assert any(row["fragment_id"] == daily["fragment_id"] for row in found)
+    proposal = request("POST", "/fragments/propose", token=student, body={
+        "text_ba": "Һаумы, дуҫым",
+        "translation": "Здравствуй, друг",
+        "lang_pair": "ba-ru",
+    }, expected=201)
+    assert proposal["awarded_xp"] == 20
+    proposed = request("GET", f"/fragments/search?{urllib.parse.urlencode({'q': 'Һаумы, дуҫым', 'limit': 20})}", token=student)
+    assert any(row["fragment_id"] == proposal["fragment_id"] and row["status"] == "pending" for row in proposed)
+    request("POST", "/fragments/propose", token=student, body={
+        "text_ba": "Һаумы, дуҫым",
+        "translation": "Здравствуй, друг",
+        "lang_pair": "ba-ru",
+    }, expected=409)
+    request("POST", "/fragments/propose", token=student, body={
+        "text_ba": "https://spam.example",
+        "translation": "Ссылка",
+        "lang_pair": "ba-ru",
+    }, expected=422)
+    print("OK: поиск по fragments, новая пара +20 очков, дубликат 409 и спам 422")
 
     categories = ["top", "schools", "classes", "accuracy", "vocabulary", "corrections"]
     periods = ["day", "week", "month", "year", "all"]

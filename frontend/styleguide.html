@@ -1517,6 +1517,36 @@
         grid-column: 1 / -1;
       }
     }
+
+    /* Витрины экранов приложения: только для руководства. */
+    .sg-lesson-demo {
+      max-width: 520px;
+      min-height: 560px;
+      margin-inline: auto;
+      overflow: hidden;
+      border: 2px solid var(--line);
+      border-radius: var(--r-card);
+    }
+
+    .sg-lesson-demo .lesson__body { overflow: visible; }
+    .sg-progress-40 { --progress: 40%; }
+    .sg-component-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--s4); align-items: start; }
+    .sg-flip-demo { max-width: 400px; height: 320px; }
+    .sg-map-demo { max-width: 420px; margin-inline: auto; padding: var(--s3); overflow: hidden; border: 2px solid var(--line); border-radius: var(--r-card); background: var(--white); }
+    .sg-map-demo .unit { position: relative; top: auto; }
+    .sg-map-demo .path-tree { position: relative; }
+    .sg-map-demo .path-row { min-height: 104px; }
+    .sg-map-demo .path-svg { height: 100%; }
+    .sg-topbar-demo { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); min-height: 56px; padding: var(--s2) var(--s3); }
+    .sg-bottom-nav-demo { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 2px solid var(--line); background: var(--white); }
+    .sg-navigation-demo { overflow: hidden; border: 2px solid var(--line); border-radius: var(--r-card); }
+    .sg-duel-demo { padding: var(--s4); border: 2px solid var(--line); border-radius: var(--r-card); background: var(--white); }
+    .sg-sprite-set { padding: var(--s3) 0; border-bottom: 2px solid var(--line); }
+    .sg-sprite-set:last-child { border-bottom: 0; }
+    .sg-sprite-states { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: var(--s2); }
+    .sg-sprite { display: flex; flex-direction: column; align-items: center; gap: var(--s2); min-width: 0; text-align: center; }
+    .sg-sprite img { width: 96px; height: 96px; object-fit: contain; }
+    .sg-sprite span { font-size: 14px; font-weight: 700; color: var(--ink-600); overflow-wrap: anywhere; }
   </style>
 </head>
 <body class="sg">
@@ -1556,13 +1586,14 @@
     </a>
     <nav class="sg-nav" aria-label="Разделы руководства">
       <a href="#tokens">Токены</a>
-      <a href="#type">Шрифт</a>
-      <a href="#ornament">Орнамент</a>
-      <a href="#icons">Иконки</a>
-      <a href="#buttons">Компоненты</a>
+      <a href="#buttons">Кнопки</a>
+      <a href="#lesson">Урок</a>
+      <a href="#flip">Карточки</a>
+      <a href="#course-map">Карта</a>
+      <a href="#characters">Персонажи</a>
       <a href="#adaptive">Адаптив</a>
     </nav>
-    <span class="sg-version">v1.0</span>
+    <span class="sg-version">v2.0</span>
   </div>
 </header>
 <div class="ornament-strip" aria-hidden="true"></div>
@@ -1574,10 +1605,10 @@
       <h1>Башкирская языковая школа</h1>
       <p class="sg-hero__lead">Плоский, яркий интерфейс для школьников 10–17 лет: переводят фразы, получают очки и соревнуются школами. Один главный акцент на экран, объёмные кнопки и орнамент ровно в пяти местах.</p>
       <div class="sg-hero__facts" aria-label="Ключевые параметры системы">
-        <div class="sg-fact"><strong>960</strong><span>px ширина контента</span></div>
-        <div class="sg-fact"><strong>8</strong><span>px шаг сетки</span></div>
+        <div class="sg-fact"><strong>360</strong><span>px mobile-first</span></div>
+        <div class="sg-fact"><strong>14</strong><span>px минимум текста</span></div>
+        <div class="sg-fact"><strong>22</strong><span>спрайта персонажей</span></div>
         <div class="sg-fact"><strong>AA</strong><span>контраст текста</span></div>
-        <div class="sg-fact"><strong>0</strong><span>зависимостей</span></div>
       </div>
       <div class="sg-hero__actions">
         <a class="btn btn-primary" href="#buttons">Смотреть компоненты</a>
@@ -2006,9 +2037,100 @@
     </div>
   </section>
 
-  <section class="sg-section" id="forms">
+  <section class="sg-section" id="lesson">
     <header class="sg-section__head">
       <span class="sg-num">06</span>
+      <div><h2>Урок и плашки</h2><p>Одна инструкция, одна сцена с персонажем и один sticky-футер; результат всегда появляется нижним листом.</p></div>
+    </header>
+    <div class="sg-section__body">
+      <div class="lesson sg-lesson-demo">
+        <div class="lesson__top">
+          <button class="btn btn-ghost btn-icon" type="button" aria-label="Закрыть пример урока"><svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg></button>
+          <div class="progress" role="progressbar" aria-label="Пример прогресса" aria-valuemin="0" aria-valuemax="100" aria-valuenow="40"><span class="progress__bar sg-progress-40"></span></div>
+          <span class="lesson__hearts">♥ 5</span>
+        </div>
+        <div class="lesson__body">
+          <h3 class="lesson__title">Собери фразу</h3>
+          <div class="character-stage">
+            <div class="character character--static" data-char="granny" data-state="idle" aria-hidden="true"><img class="character__img" src="/characters/granny_idle.webp" width="512" height="512" alt=""></div>
+            <div class="speech"><span class="speech__text">Собери фразу: «бабушка»</span></div>
+          </div>
+          <div class="answer-line"><button class="tile is-selected" type="button" lang="ba">өләсәй</button></div>
+          <div class="bank"><button class="tile is-used" type="button" disabled lang="ba">өләсәй</button><button class="tile" type="button" lang="ba">әсәй</button><button class="tile" type="button" lang="ba">ҡарт</button></div>
+        </div>
+        <div class="lesson__foot"><button class="btn btn-success btn-lg btn-block" type="button">Проверить</button></div>
+      </div>
+      <h3 class="sg-subhead">Состояния .tile</h3>
+      <div class="scroll-x"><table class="state-table"><thead><tr><th>Default</th><th>Hover</th><th>Active</th><th>Selected</th><th>Correct</th><th>Wrong</th><th>Used / disabled</th><th>Focus</th></tr></thead><tbody><tr>
+        <td><button class="tile" type="button">Сәй</button></td><td><button class="tile is-hover" type="button">Сәй</button></td><td><button class="tile is-active" type="button">Сәй</button></td><td><button class="tile is-selected" type="button">Сәй</button></td><td><button class="tile is-correct" type="button">✓ Сәй</button></td><td><button class="tile is-wrong" type="button">✕ Сәй</button></td><td><button class="tile is-used" type="button" disabled>Сәй</button></td><td><button class="tile is-focus" type="button">Сәй</button></td>
+      </tr></tbody></table></div>
+      <p class="note">.choice растягивает плашку на всю ширину. .answer-line — единственный разрешённый градиент: две строки по 56 px. Цвет всегда дублируется ✓ или ✕.</p>
+    </div>
+  </section>
+
+  <section class="sg-section" id="flip">
+    <header class="sg-section__head"><span class="sg-num">07</span><div><h2>Карточка-флип</h2><p>Одна рамка, круглая озвучка внутри и перевод на обороте; при reduced motion вращение отключается.</p></div></header>
+    <div class="sg-section__body">
+      <div class="sg-component-grid">
+        <div><span class="spec-label">Лицо</span><div class="flip sg-flip-demo"><div class="flip__inner"><div class="flip__face"><strong class="flip__word" lang="ba">сәй</strong><button class="btn btn-ghost btn-icon flip__audio" type="button" aria-label="Прослушать слово"><svg class="icon" aria-hidden="true"><use href="#i-speaker"></use></svg></button><span class="flashcard-hint">Нажми, чтобы увидеть перевод</span></div></div></div></div>
+        <div><span class="spec-label">Оборот</span><div class="flip is-flipped sg-flip-demo"><div class="flip__inner"><div class="flip__face"><strong class="flip__word" lang="ba">сәй</strong></div><div class="flip__face flip__face--back"><strong class="flip__word">чай</strong><div class="flashcard-example"><strong lang="ba">Сәй бал менән тәмле.</strong><p>Чай с мёдом вкусный.</p></div><span class="flashcard-hint">Нажми, чтобы вернуться</span></div></div></div></div>
+      </div>
+      <p class="note">Футер: круглая кнопка «Назад» и .btn-primary.btn-lg «Дальше». Сердца и счётчик карточек не нужны — прогресс показывает полоса.</p>
+    </div>
+  </section>
+
+  <section class="sg-section" id="course-map">
+    <header class="sg-section__head"><span class="sg-num">08</span><div><h2>Карта курса</h2><p>Круглые объёмные узлы, точечная SVG-тропинка и персонажи сбоку; блокировка передаётся серым, не прозрачностью.</p></div></header>
+    <div class="sg-section__body">
+      <div class="sg-map-demo">
+        <div class="unit unit--1"><div><strong>Раздел 1</strong><h3>Чаепитие у Өләсәй</h3></div><span class="unit-banner__progress">1/3</span></div>
+        <div class="path-tree">
+          <svg class="path-svg" viewBox="0 0 360 440" preserveAspectRatio="none" aria-hidden="true"><path d="M180 24 C230 80 250 110 220 164 S150 250 180 300 S230 370 180 420"></path><path class="is-done" d="M180 24 C230 80 250 110 220 164"></path></svg>
+          <div class="path-row"><div class="node-wrap"><button class="node is-done" type="button" style="--dx:0" aria-label="Пройденный урок"><svg class="icon" aria-hidden="true"><use href="#i-check"></use></svg></button></div></div>
+          <div class="path-row"><div class="node-wrap"><div class="node-guide"><div class="node-guide__bubble">Начать · Собираем предложения</div></div><button class="node is-current" type="button" style="--dx:40" aria-label="Текущий урок"><svg class="icon" aria-hidden="true"><use href="#i-book"></use></svg></button></div><img class="path-character path-character--left" src="/characters/granny_idle.webp" width="96" height="96" alt="" aria-hidden="true"></div>
+          <div class="path-row"><div class="node-wrap"><button class="node is-locked" type="button" style="--dx:-40" aria-label="Заблокированный урок"><svg class="icon" aria-hidden="true"><use href="#i-lock"></use></svg></button></div></div>
+          <div class="path-row"><div class="node-wrap"><button class="node node--boss is-locked" type="button" style="--dx:0" aria-label="Заблокированный квест"><svg class="icon" aria-hidden="true"><use href="#i-cup"></use></svg></button></div><img class="path-character path-character--right path-character--boss" src="/characters/granny_TeaTime.webp" width="112" height="112" alt="" aria-hidden="true"></div>
+        </div>
+      </div>
+      <p class="note">--dx следует последовательности 0, 40, 64, 40, 0, −40, −64, −40. ResizeObserver перестраивает кубические Безье; пройденный путь — золотой.</p>
+    </div>
+  </section>
+
+  <section class="sg-section" id="navigation">
+    <header class="sg-section__head"><span class="sg-num">09</span><div><h2>Навигация и шапка</h2><p>Шапка высотой 56 px содержит языковую пару, серию, очки и жизни только там, где они нужны.</p></div></header>
+    <div class="sg-section__body"><div class="sg-navigation-demo"><div class="sg-topbar-demo"><strong>ba → ru</strong><span>Серия 6 · 340 очков · 5 жизней</span></div><div class="ornament-strip" aria-hidden="true"></div><nav class="sg-bottom-nav-demo" aria-label="Пример навигации"><a class="duo-nav-tab is-active" href="#course-map"><svg class="icon" aria-hidden="true"><use href="#i-home"></use></svg><span>Курс</span></a><a class="duo-nav-tab" href="#community"><svg class="icon" aria-hidden="true"><use href="#i-book"></use></svg><span>Сообщество</span></a><a class="duo-nav-tab" href="#rating-profile"><svg class="icon" aria-hidden="true"><use href="#i-cup"></use></svg><span>Рейтинг</span></a><a class="duo-nav-tab" href="#rating-profile"><svg class="icon" aria-hidden="true"><use href="#i-profile"></use></svg><span>Профиль</span></a></nav></div><p class="note">На 360–390 px панель остаётся снизу. С 1024 px навигация становится левой колонкой 240 px, справа появляется колонка 320 px.</p></div>
+  </section>
+
+  <section class="sg-section" id="quest">
+    <header class="sg-section__head"><span class="sg-num">10</span><div><h2>Квест</h2><p>Босс и игрок стоят лицом к лицу; длинная реплика переходит в stack-вариант, а победа завершается наградой и конфетти.</p></div></header>
+    <div class="sg-section__body"><div class="sg-duel-demo"><div class="character-stage character-stage--duel character-stage--stack"><div class="character character--static" data-char="granny" data-state="thinking" aria-hidden="true"><img class="character__img" src="/characters/granny_idle.webp" width="512" height="512" alt=""></div><div class="speech speech--up"><span class="speech__text" lang="ba">Һаумыһығыҙ! Һеҙҙең өйҙә кемдәр бар?</span></div></div><p class="exercise-prompt">Выбери подходящий ответ собеседника.</p><div class="choice-list"><button class="tile choice is-selected" type="button" lang="ba">Беҙҙең өйҙә әсәй, ата һәм мин.</button><button class="tile choice" type="button" lang="ba">Сәй бал менән тәмле.</button></div><div class="boss-player-stage"><div class="character character--static" data-char="boy" data-state="idle" aria-hidden="true"><img class="character__img" src="/characters/boy_idle.webp" width="512" height="512" alt=""></div></div></div><p class="note">Верно: success у обоих. Ошибка: fail. Финал: special и combo. «Афарин!» разрешено только на серии из трёх и финале.</p></div>
+  </section>
+
+  <section class="sg-section" id="community">
+    <header class="sg-section__head"><span class="sg-num">11</span><div><h2>Сообщество</h2><p>Проверка перевода начинается с фразы и человекочитаемого источника, а не со служебных полей и экспорта.</p></div></header>
+    <div class="sg-section__body"><article class="workout-card card-task daily-card"><div class="ornament-corner" aria-hidden="true"></div><div class="daily-card__top"><span class="chip-static">Задание дня</span><span>+15 очков</span></div><div class="daily-phrase"><p class="text-ba" lang="ba">Һаумыһығыҙ!</p><button class="btn btn-ghost btn-icon" type="button" aria-label="Прослушать пример"><svg class="icon" aria-hidden="true"><use href="#i-speaker"></use></svg></button></div><p class="source-line"><svg class="icon icon-sm" aria-hidden="true"><use href="#i-book"></use></svg>Трёхъязычный разговорник · 00:00</p><div class="translation-panel"><span>Предложенный перевод</span><p>Здравствуйте!</p></div><div class="daily-actions"><button class="btn btn-success" type="button">Верно</button><button class="btn btn-danger" type="button">Неверно</button></div></article><p class="note">Пустое состояние — bear_sleepy, выполненное задание — granny_TeaTime. Источник записывается как «Новости · 09:05».</p></div>
+  </section>
+
+  <section class="sg-section" id="rating-profile">
+    <header class="sg-section__head"><span class="sg-num">12</span><div><h2>Рейтинг и профиль</h2><p>Компактные строки рейтинга, статистика 2×2 и награды сеткой по три; данные берутся из одного store.</p></div></header>
+    <div class="sg-section__body"><div class="sg-component-grid"><div><h3 class="sg-subhead">Рейтинг</h3><div class="rank-row rank-item rank-row--me rank-item--me"><div class="rank-badge rank-badge--1">1</div><div class="avatar">АЮ</div><div class="rank-info"><span class="rank-name">Айгуль · Вы</span><span class="rank-meta">БЛИ № 3 · 7А</span></div><strong class="rank-points">340 очков</strong></div><div class="rank-row rank-item"><div class="rank-badge rank-badge--2">2</div><div class="avatar">ЛМ</div><div class="rank-info"><span class="rank-name">Лилия</span><span class="rank-meta">СОШ № 12 · 9А</span></div><strong class="rank-points">160 очков</strong></div></div><div><h3 class="sg-subhead">Профиль</h3><div class="stat-grid"><div class="card stat-card"><strong>340</strong><span>очков</span></div><div class="card stat-card"><strong>4</strong><span>уровень</span></div><div class="card stat-card"><strong>6</strong><span>дней серии</span></div><div class="card stat-card"><strong>1</strong><span>этапов курса</span></div></div></div></div><p class="note">Никакого «XP». Тяжёлая кнопка обновления не нужна: профиль обновляется сразу после действий.</p></div>
+  </section>
+
+  <section class="sg-section" id="characters">
+    <header class="sg-section__head"><span class="sg-num">13</span><div><h2>Персонажи и сцена</h2><p>22 локальных WebP-спрайта сохраняют исходную линию пола; состояния меняются мгновенно после preload.</p></div></header>
+    <div class="sg-section__body">
+      <div class="sg-sprite-set"><h3>boy · Мальчик</h3><div class="sg-sprite-states"><div class="sg-sprite"><img src="/characters/boy_idle.webp" width="384" height="384" alt="Мальчик: покой"><span>idle</span></div><div class="sg-sprite"><img src="/characters/boy_success.webp" width="384" height="384" alt="Мальчик: успех"><span>success</span></div><div class="sg-sprite"><img src="/characters/boy_fail.webp" width="384" height="384" alt="Мальчик: ошибка"><span>fail</span></div><div class="sg-sprite"><img src="/characters/boy_thinking.webp" width="384" height="384" alt="Мальчик: размышление"><span>thinking</span></div><div class="sg-sprite"><img src="/characters/boy_combo.webp" width="384" height="384" alt="Мальчик: серия"><span>combo</span></div><div class="sg-sprite"><img src="/characters/boy_starstuck.webp" width="384" height="384" alt="Мальчик: награда"><span>special</span></div></div></div>
+      <div class="sg-sprite-set"><h3>girl · Девочка</h3><div class="sg-sprite-states"><div class="sg-sprite"><img src="/characters/girl_idle.webp" width="384" height="384" alt="Девочка: покой"><span>idle</span></div><div class="sg-sprite"><img src="/characters/girl_success.webp" width="384" height="384" alt="Девочка: успех"><span>success</span></div><div class="sg-sprite"><img src="/characters/girl_fail.webp" width="384" height="384" alt="Девочка: ошибка"><span>fail</span></div><div class="sg-sprite"><img src="/characters/girl_sassy.webp" width="384" height="384" alt="Девочка: особая реакция"><span>special</span></div></div></div>
+      <div class="sg-sprite-set"><h3>granny · Өләсәй</h3><div class="sg-sprite-states"><div class="sg-sprite"><img src="/characters/granny_idle.webp" width="384" height="384" alt="Өләсәй: покой"><span>idle</span></div><div class="sg-sprite"><img src="/characters/granny_success.webp" width="384" height="384" alt="Өләсәй: успех"><span>success</span></div><div class="sg-sprite"><img src="/characters/granny_fail.webp" width="384" height="384" alt="Өләсәй: ошибка"><span>fail</span></div><div class="sg-sprite"><img src="/characters/granny_TeaTime.webp" width="384" height="384" alt="Өләсәй: чаепитие"><span>special</span></div></div></div>
+      <div class="sg-sprite-set"><h3>bear · Айыу</h3><div class="sg-sprite-states"><div class="sg-sprite"><img src="/characters/bear_idle.webp" width="384" height="384" alt="Айыу: покой"><span>idle</span></div><div class="sg-sprite"><img src="/characters/bear_success.webp" width="384" height="384" alt="Айыу: успех"><span>success</span></div><div class="sg-sprite"><img src="/characters/bear_fail.webp" width="384" height="384" alt="Айыу: ошибка"><span>fail</span></div><div class="sg-sprite"><img src="/characters/bear_sleepy.webp" width="384" height="384" alt="Айыу: отдых"><span>special</span></div></div></div>
+      <div class="sg-sprite-set"><h3>akbuzat · Акбузат</h3><div class="sg-sprite-states"><div class="sg-sprite"><img src="/characters/akbuzat_idle.webp" width="384" height="384" alt="Акбузат: покой"><span>idle</span></div><div class="sg-sprite"><img src="/characters/akbuzat_success.webp" width="384" height="384" alt="Акбузат: успех"><span>success</span></div><div class="sg-sprite"><img src="/characters/akbuzat_fail.webp" width="384" height="384" alt="Акбузат: ошибка"><span>fail</span></div><div class="sg-sprite"><img src="/characters/akbuzat_flying.webp" width="384" height="384" alt="Акбузат: полёт"><span>special</span></div></div></div>
+      <h3 class="sg-subhead">Сцена, дыхание и речь</h3><p class="note">В покое на сцене урока разрешено дыхание 3 s и ±2%; на карте персонажи статичны. Прыжок success/combo — 500 ms, fail — 300 ms, special — искры до 600 ms. После 1200–1600 ms спрайт возвращается к idle. Пузырь содержит одну короткую реплику, а русский вердикт остаётся в feedback-sheet.</p><p class="note">thinking → idle, combo → success, special → success, неизвестное → idle. При ошибке загрузки используется mascotFallback(). Все reduced-motion-режимы отключают flip, shake, пульс, дыхание и прыжок.</p>
+    </div>
+  </section>
+
+  <section class="sg-section" id="forms">
+    <header class="sg-section__head">
+      <span class="sg-num">14</span>
       <div>
         <h2>Поля и выбор</h2>
         <p>Высота поля 52 px, граница 2 px, фокус — синяя граница. Ошибка всегда с иконкой и текстом, а не только цветом. Чипы и вкладки — те же 44 px.</p>
@@ -2159,7 +2281,7 @@
   </section>
   <section class="sg-section" id="rewards">
     <header class="sg-section__head">
-      <span class="sg-num">07</span>
+      <span class="sg-num">15</span>
       <div>
         <h2>Прогресс и награды</h2>
         <p>Прогресс показывает путь, а не давит. Очки, серия и точность — равноправные метрики: ни одна не становится единственным смыслом экрана.</p>
@@ -2278,7 +2400,7 @@
 
   <section class="sg-section" id="feedback">
     <header class="sg-section__head">
-      <span class="sg-num">08</span>
+      <span class="sg-num">16</span>
       <div>
         <h2>Ответ и обратная связь</h2>
         <p>Лист ответа выезжает снизу и не перекрывает задание целиком. Зелёный и красный здесь всегда работают вместе с иконкой и текстом, поэтому цвет не единственный сигнал.</p>
@@ -2393,10 +2515,10 @@
   </section>
   <section class="sg-section" id="mascot">
     <header class="sg-section__head">
-      <span class="sg-num">09</span>
+      <span class="sg-num">17</span>
       <div>
-        <h2>Маскот и речь</h2>
-        <p>Маскот — собеседник, а не украшение. Одна реплика, один совет, никаких «Ура, ты молодец!» на каждом шаге.</p>
+        <h2>Резервный маскот и речь</h2>
+        <p>Основные персонажи показаны в разделе 13; этот запасной вариант нужен только при ошибке загрузки спрайта.</p>
       </div>
     </header>
     <div class="sg-section__body">
@@ -2441,7 +2563,7 @@
           <button class="btn btn-ghost" type="button" id="mascot-trigger">Подбодрить маскота</button>
         </div>
       </div>
-      <p class="note" style="margin-top: var(--s3)">Пружинка 300 ms — только по действию, не в цикле. В покое маскот неподвижен: постоянное покачивание отвлекает от задания.</p>
+      <p class="note" style="margin-top: var(--s3)">Прыжок по действию длится 500 ms. На сцене урока один персонаж может медленно дышать (3 s, ±2%); на карте и в резервном состоянии анимации покоя нет.</p>
 
       <h3 class="sg-subhead">Разметка</h3>
       <div class="snippet"><code>&lt;img class="mascot mascot-md" src="assets/mascot.png" alt=""
@@ -2453,7 +2575,7 @@
 
   <section class="sg-section" id="adaptive">
     <header class="sg-section__head">
-      <span class="sg-num">10</span>
+      <span class="sg-num">18</span>
       <div>
         <h2>Адаптив</h2>
         <p>Сначала мобильный: 360 px, нижняя панель 64 px, цели не меньше 44×44. С 1024 px появляются меню 240 px и правая колонка 320 px, а нижняя панель исчезает.</p>
@@ -2825,7 +2947,6 @@
       liveSheetClose.className = data.buttonClass;
       liveSheet.classList.add('is-open');
       liveSheet.setAttribute('aria-hidden', 'false');
-      liveSheetClose.focus({ preventScroll: true });
     }
 
     function closeSheet() {

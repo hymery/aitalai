@@ -1,4 +1,4 @@
-import { COURSE_UNITS } from "./course-data.js";
+import { applyUnitDetail, COURSE_UNITS, replaceCourseUnits } from "./course-data.js";
 import {
   ApiError,
   API_URL,
@@ -7,6 +7,8 @@ import {
   getStoredToken,
   saveToken,
 } from "./api.js";
+import { characterStage, preload, reactToAnswer, resetStreak, setState, spriteUrl } from "./characters.js";
+import { lessonCharacter, PLAYER_CHAR, UNIT_CAST } from "./cast.js";
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -31,7 +33,7 @@ const RATING_PERIODS = [
 const BADGE_CATALOG = [
   { id: "first_answer", title: "Первый голос", desc: "Оценён первый перевод", icon: "i-check" },
   { id: "corrector", title: "Внимательный редактор", desc: "Предложено первое исправление", icon: "i-pencil" },
-  { id: "hundred_points", title: "Сотня XP", desc: "Набрано 100 очков опыта", icon: "kurai" },
+  { id: "hundred_points", title: "Сотня очков", desc: "Набрано 100 очков опыта", icon: "kurai" },
   { id: "ten_answers", title: "Хранитель языка", desc: "Отправлено 10 оценок переводов", icon: "i-shield" },
 ];
 
@@ -47,21 +49,30 @@ const State = {
   wordBankPlaced: [],
   flashIndex: 0,
   flashFlipped: false,
+  inQuiz: false,
+  quizIndex: 0,
+  lessonAnswers: 0,
+  lessonCorrect: 0,
   pairSelection: { ba: null, ru: null },
   matchedPairs: new Set(),
   hearts: 5,
   completing: false,
+  loadingCourseAction: false,
   bossUnit: null,
   bossStageIndex: 0,
   bossPhase: "answering",
   bossChoice: null,
   bossItems: new Set(),
   bossWords: [],
+  bossAnswers: 0,
+  bossCorrect: 0,
   dailyTask: null,
   dailyMode: "actions",
   dailyResult: null,
   dailyCorrection: "",
   dailySubmitting: false,
+  communityMode: "verify",
+  searchRequest: 0,
   ratingCategory: "top",
   ratingPeriod: "all",
   ratingRequest: 0,
@@ -143,10 +154,10 @@ function setBusy(button, busy, busyText = "Отправляем…") {
 function updateTopBar() {
   if (!State.user) return;
   $("#top-streak").textContent = formatNumber(State.user.streak_days);
+  $("#rail-streak").textContent = formatNumber(State.user.streak_days);
   $("#top-points").textContent = formatNumber(State.user.points);
   $("#top-hearts").textContent = State.hearts;
   $("#lesson-hearts").textContent = State.hearts;
-  $("#top-avatar").textContent = initials(State.user.full_name);
 }
 
 function setAuthMode(mode) {
@@ -171,16 +182,12 @@ function showAuth(message = "") {
 async function finishAuth(payload) {
   saveToken(payload.access_token);
   State.user = payload.user;
-  const progress = await apiRequest("/course/progress");
-  State.progress = new Set(
-    progress.map((item) => `${item.unit_id}:${item.lesson_id}`)
-  );
   $("#auth-screen").hidden = true;
   $("#app-shell").hidden = false;
   applyRoleLayout();
   updateTopBar();
-  renderCourse();
   renderRatingControls();
+  await loadCourseUnits();
   const requested = location.hash.slice(1);
   switchTab(["course", "community", "ratings", "cabinet", "profile"].includes(requested) ? requested : "course");
 }
@@ -253,6 +260,7 @@ function switchTab(tab) {
   ["course", "community", "ratings", "cabinet", "profile"].forEach((name) => {
     $(`#screen-${name}`).hidden = name !== tab;
   });
+  $("#top-hearts-wrap").hidden = ["community", "ratings", "profile", "cabinet"].includes(tab);
   if (location.hash !== `#${tab}`) history.replaceState(null, "", `#${tab}`);
   window.scrollTo({ top: 0, behavior: "smooth" });
   if (tab === "course") renderCourse();
@@ -292,82 +300,163 @@ function isBossUnlocked(unit) {
   return isUnitUnlocked(unitIndex) && unit.lessons.every((lesson) => isComplete(unit.unit_id, lesson.lesson_id));
 }
 
+async function loadCourseUnits() {
+  const container = $("#course-content");
+  container.innerHTML = loadingBlock("Загружаем курсы и ваш прогресс…");
+  try {
+    const summaries = await apiRequest("/courses/units");
+    replaceCourseUnits(summaries);
+    State.progress = new Set();
+    COURSE_UNITS.forEach((unit) => {
+      unit.lessons.forEach((lesson) => {
+        if (unit.api_progress[lesson.circle]?.completed) {
+          State.progress.add(progressKey(unit.unit_id, lesson.lesson_id));
+        }
+      });
+      if (unit.api_progress.boss_story?.completed) {
+        State.progress.add(progressKey(unit.unit_id, unit.final_boss_node.lesson_id));
+      }
+    });
+    renderCourse();
+  } catch (error) {
+    renderError(container, error, loadCourseUnits);
+  }
+}
+
+let courseResizeObserver;
+const NODE_OFFSETS = [0, 40, 64, 40, 0, -40, -64, -40];
+
 function renderCourse() {
   const container = $("#course-content");
+  if (!COURSE_UNITS.length) {
+    container.innerHTML = emptyBlock("Курсы пока не добавлены", "Запустите build_courses.py на backend и повторите загрузку.");
+    return;
+  }
   container.innerHTML = COURSE_UNITS.map((unit, unitIndex) => {
     const unitUnlocked = isUnitUnlocked(unitIndex);
     const completedLessons = unit.lessons.filter((lesson) => isComplete(unit.unit_id, lesson.lesson_id)).length;
     const bossDone = isComplete(unit.unit_id, unit.final_boss_node.lesson_id);
-    const positions = ["pos-c", "pos-l1", "pos-r1"];
+    const cast = UNIT_CAST[unit.unit_id] || UNIT_CAST[1];
     const lessonsHtml = unit.lessons.map((lesson, lessonIndex) => {
       const done = isComplete(unit.unit_id, lesson.lesson_id);
       const unlocked = isLessonUnlocked(unit, lessonIndex);
       const active = unlocked && !done;
-      const className = done ? "node-btn--done" : active ? "node-btn--active" : "node-btn--locked";
+      const className = done ? "is-done" : active ? "is-current" : "is-locked";
       const lessonIcon = done ? "i-check" : !unlocked ? "i-lock" : lesson.lesson_type === "flashcards" ? "i-book" : "i-star";
-      return `<div class="path-row ${positions[lessonIndex % positions.length]}">
+      const dx = NODE_OFFSETS[lessonIndex % NODE_OFFSETS.length];
+      const guide = cast.guides[lessonIndex % cast.guides.length];
+      const character = Math.abs(dx) >= 40 ? `<img class="path-character ${dx > 0 ? "path-character--left" : "path-character--right"}" src="${spriteUrl(guide)}" width="96" height="96" alt="" aria-hidden="true" draggable="false">` : "";
+      return `<div class="path-row">
+        ${character}
         <div class="node-wrap">
-          ${active ? `<div class="node-guide"><div class="node-guide__bubble">${lesson.lesson_type === "flashcards" ? "Сначала новые слова" : "Башлайбыҙмы?"}</div></div>` : ""}
-          <button class="node-btn ${className}" type="button" data-lesson-unit="${unit.unit_id}" data-lesson-id="${lesson.lesson_id}" ${unlocked ? "" : "disabled"} aria-label="${esc(lesson.lesson_title)}">${icon(lessonIcon)}</button>
-          <span class="node-label">${lesson.lesson_id}. ${esc(lesson.lesson_title)}</span>
-          <span class="node-type">${lesson.lesson_type === "flashcards" ? "Карточки" : "Практика"}</span>
+          ${active ? `<div class="node-guide"><div class="node-guide__bubble">Начать · ${esc(lesson.lesson_title)}</div></div>` : ""}
+          <button class="node ${className}" style="--dx:${dx}" type="button" data-lesson-unit="${unit.unit_id}" data-lesson-id="${lesson.lesson_id}" data-locked="${!unlocked}" aria-label="${esc(lesson.lesson_title)}">${icon(lessonIcon)}</button>
         </div>
       </div>`;
     }).join("");
     const bossUnlocked = isBossUnlocked(unit);
-    const bossClass = bossDone ? "node-btn--done" : bossUnlocked ? "node-btn--chest node-btn--boss" : "node-btn--locked";
+    const bossClass = bossDone ? "is-done" : bossUnlocked ? "" : "is-locked";
     return `<section class="course-unit ${unitUnlocked ? "" : "is-locked"}">
       <div class="unit-banner unit-banner--${unit.accent}">
-        <div><div class="unit-banner__num">РАЗДЕЛ ${unit.unit_id}</div><div class="unit-banner__title">${esc(unit.unit_title)}</div><div class="unit-banner__desc">${esc(unit.unit_subtitle)} · ${completedLessons}/${unit.lessons.length} уроков</div></div>
-        <button class="unit-banner__btn" type="button" data-unit-guide="${unit.unit_id}" ${unitUnlocked ? "" : "disabled"} aria-label="Открыть карточки раздела">${icon(unitUnlocked ? "i-book" : "i-lock")}</button>
+        <div><div class="unit-banner__num">Раздел ${unitIndex + 1}</div><div class="unit-banner__title">${esc(unit.unit_title)}</div><div class="unit-banner__desc">${esc(unit.unit_subtitle)}</div></div>
+        <span class="unit-banner__progress">${completedLessons}/${unit.lessons.length}</span>
       </div>
-      <div class="path-tree">${lessonsHtml}
-        <div class="path-row pos-c boss-row"><div class="node-wrap">
-          <button class="node-btn ${bossClass}" type="button" data-boss-unit="${unit.unit_id}" ${bossUnlocked || bossDone ? "" : "disabled"} aria-label="${esc(unit.final_boss_node.quest_title)}">${icon(bossDone ? "i-check" : bossUnlocked ? "i-crown" : "i-lock")}</button>
-          <span class="node-label boss-label">${esc(unit.final_boss_node.quest_title)}</span>
-          <span class="node-type">${bossDone ? "Пройдено" : "Финальный квест"}</span>
-        </div></div>
+      <div class="path-tree"><svg class="path-svg" aria-hidden="true"></svg>${lessonsHtml}
+        <div class="path-row boss-row">
+          <img class="path-character path-character--right path-character--boss" src="${spriteUrl(cast.boss)}" width="112" height="112" alt="" aria-hidden="true" draggable="false">
+          <div class="node-wrap"><button class="node node--boss ${bossClass}" type="button" data-boss-unit="${unit.unit_id}" data-locked="${!(bossUnlocked || bossDone)}" aria-label="${esc(unit.final_boss_node.quest_title)}">${icon(bossDone ? "i-check" : "i-crown")}</button></div>
+        </div>
       </div>
     </section>`;
   }).join("");
 
   $$('[data-lesson-unit]', container).forEach((button) => {
-    button.addEventListener("click", () => startLesson(Number(button.dataset.lessonUnit), Number(button.dataset.lessonId)));
+    button.addEventListener("click", () => {
+      if (button.dataset.locked === "true") showToast("Сначала пройди предыдущий урок");
+      else startLesson(Number(button.dataset.lessonUnit), Number(button.dataset.lessonId), button);
+    });
   });
   $$('[data-boss-unit]', container).forEach((button) => {
-    button.addEventListener("click", () => startBoss(Number(button.dataset.bossUnit)));
+    button.addEventListener("click", () => {
+      if (button.dataset.locked === "true") showToast("Сначала пройди все уроки раздела");
+      else startBoss(Number(button.dataset.bossUnit), button);
+    });
   });
-  $$('[data-unit-guide]', container).forEach((button) => {
-    button.addEventListener("click", () => startLesson(Number(button.dataset.unitGuide), 1));
+  preload([...new Set(COURSE_UNITS.flatMap((unit) => {
+    const cast = UNIT_CAST[unit.unit_id] || UNIT_CAST[1];
+    return [...cast.guides, cast.boss];
+  }))]);
+  courseResizeObserver?.disconnect();
+  courseResizeObserver = new ResizeObserver(() => drawCoursePaths(container));
+  $$(".path-tree", container).forEach((tree) => courseResizeObserver.observe(tree));
+  requestAnimationFrame(() => drawCoursePaths(container));
+}
+
+function drawCoursePaths(container) {
+  $$(".path-tree", container).forEach((tree) => {
+    const treeBox = tree.getBoundingClientRect();
+    const nodes = $$(".node", tree);
+    const svg = $(".path-svg", tree);
+    if (!treeBox.width || !treeBox.height || !svg) return;
+    svg.setAttribute("viewBox", `0 0 ${treeBox.width} ${treeBox.height}`);
+    svg.replaceChildren();
+    nodes.slice(0, -1).forEach((node, index) => {
+      const from = node.getBoundingClientRect();
+      const to = nodes[index + 1].getBoundingClientRect();
+      const x1 = from.left - treeBox.left + from.width / 2;
+      const y1 = from.top - treeBox.top + from.height / 2;
+      const x2 = to.left - treeBox.left + to.width / 2;
+      const y2 = to.top - treeBox.top + to.height / 2;
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", `M ${x1} ${y1} C ${x1} ${(y1 + y2) / 2}, ${x2} ${(y1 + y2) / 2}, ${x2} ${y2}`);
+      if (node.classList.contains("is-done")) path.classList.add("is-done");
+      svg.append(path);
+    });
   });
 }
 
-function startLesson(unitId, lessonId) {
+async function startLesson(unitId, lessonId, button) {
   const unit = COURSE_UNITS.find((item) => item.unit_id === unitId);
   const lessonIndex = unit?.lessons.findIndex((item) => item.lesson_id === lessonId) ?? -1;
-  if (!unit || lessonIndex < 0 || !isLessonUnlocked(unit, lessonIndex)) return;
-  State.currentUnit = unit;
-  State.currentLesson = unit.lessons[lessonIndex];
-  State.currentStepIndex = 0;
-  State.lessonPhase = "answering";
-  State.flashIndex = 0;
-  State.flashFlipped = false;
-  State.hearts = 5;
-  State.completing = false;
-  State.lastFocused = document.activeElement;
-  $("#modal-lesson").hidden = false;
-  document.body.classList.add("modal-open");
-  updateTopBar();
-  renderLesson();
-  $("#lesson-close").focus();
+  if (!unit || lessonIndex < 0 || !isLessonUnlocked(unit, lessonIndex) || State.loadingCourseAction) return;
+  State.loadingCourseAction = true;
+  setBusy(button, true, "…");
+  try {
+    const detail = await apiRequest(`/courses/units/${unitId}`);
+    applyUnitDetail(unit, detail);
+    State.currentUnit = unit;
+    State.currentLesson = unit.lessons[lessonIndex];
+    State.currentStepIndex = 0;
+    State.lessonPhase = "answering";
+    State.flashIndex = 0;
+    State.flashFlipped = false;
+    State.inQuiz = false;
+    State.quizIndex = 0;
+    State.lessonAnswers = 0;
+    State.lessonCorrect = 0;
+    State.lessonStartedAt = Date.now();
+    State.hearts = 5;
+    State.completing = false;
+    resetStreak();
+    await preload([lessonId === 1 ? PLAYER_CHAR : lessonCharacter(unitId, lessonId)]);
+    $("#modal-lesson").hidden = false;
+    document.body.classList.add("modal-open");
+    updateTopBar();
+    renderLesson();
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    State.loadingCourseAction = false;
+    setBusy(button, false);
+  }
 }
 
 function closeLesson() {
   if (State.completing) return;
   $("#modal-lesson").hidden = true;
+  $("#lesson-exit-sheet").hidden = true;
   document.body.classList.remove("modal-open");
   State.currentLesson = null;
-  State.lastFocused?.focus();
 }
 
 function speakText(text) {
@@ -384,41 +473,71 @@ function speakText(text) {
   window.speechSynthesis.speak(utterance);
 }
 
+function resetLessonFooter(mode = "") {
+  const footer = $("#lesson-footer");
+  footer.className = `duo-modal__footer lesson__foot ${mode}`.trim();
+  $("#lesson-feedback-box").hidden = true;
+  $("#flashcard-prev")?.remove();
+}
+
+function currentLessonCharacter() {
+  if (!State.currentLesson) return PLAYER_CHAR;
+  if (State.currentLesson.lesson_type === "flashcards") return PLAYER_CHAR;
+  return lessonCharacter(State.currentUnit.unit_id, State.currentLesson.lesson_id, State.currentStepIndex);
+}
+
 function renderFlashcard() {
   const lesson = State.currentLesson;
   const card = lesson.cards[State.flashIndex];
   const container = $("#lesson-step-container");
-  $("#lesson-kind").textContent = "Карточки · без ошибок и жизней";
-  $("#lesson-modal-title").textContent = lesson.lesson_title;
-  $("#lesson-instruction").textContent = lesson.instruction;
+  $("#lesson-modal-title").textContent = lesson.instruction;
   $("#lesson-hearts-wrap").hidden = true;
-  $("#lesson-feedback-box").hidden = true;
+  $("#lesson-character-mini").hidden = false;
   $("#lesson-progress-bar").style.setProperty("--progress", `${((State.flashIndex + 1) / lesson.cards.length) * 100}%`);
+  resetLessonFooter("is-flashcards");
   const action = $("#lesson-action-btn");
   action.disabled = false;
-  action.className = "btn btn-primary btn-lg btn-block";
-  action.textContent = State.flashIndex === lesson.cards.length - 1 ? "Завершить карточки · +10 XP" : "Следующая карточка →";
-  container.innerHTML = `<div class="flashcard-counter">${State.flashIndex + 1} / ${lesson.cards.length}</div>
-    <button class="flashcard ${State.flashFlipped ? "is-flipped" : ""}" id="flashcard-flip" type="button" aria-label="Перевернуть карточку">
-      <span class="flashcard-side flashcard-front"><span class="flashcard-lang">БАШҠОРТСА</span><strong>${esc(card.ba)}</strong><span class="flashcard-hint">Нажми, чтобы увидеть перевод</span></span>
-      <span class="flashcard-side flashcard-back"><span class="flashcard-lang">РУССКИЙ</span><strong>${esc(card.ru)}</strong><span class="flashcard-hint">Нажми, чтобы вернуться</span></span>
-    </button>
-    <button class="audio-button" id="flashcard-audio" type="button">${icon("i-volume", "icon icon-sm")}Прослушать башкирское слово</button>
-    <div class="flashcard-example"><span>Пример</span><strong>${esc(card.example_ba)}</strong><p>${esc(card.example_ru)}</p></div>
-    <button class="btn btn-ghost btn-block" id="flashcard-prev" type="button" ${State.flashIndex === 0 ? "disabled" : ""}>← Предыдущая карточка</button>`;
-  $("#flashcard-flip").addEventListener("click", () => {
+  action.className = "btn btn-primary btn-lg";
+  action.textContent = State.flashIndex === lesson.cards.length - 1 ? (lesson.quiz.length ? "Перейти к квизу" : "Завершить этап") : "Дальше";
+  container.innerHTML = `<div class="flip flashcard ${State.flashFlipped ? "is-flipped" : ""}" id="flashcard-flip" role="button" tabindex="0" aria-label="Перевернуть карточку">
+    <div class="flip__inner">
+      <div class="flip__face flashcard-side flashcard-front"><strong class="flip__word" lang="ba">${esc(card.ba)}</strong><button class="btn btn-ghost btn-icon flip__audio" id="flashcard-audio" type="button" aria-label="Прослушать башкирское слово">${icon("i-volume")}</button><span class="flashcard-hint">Нажми, чтобы увидеть перевод</span></div>
+      <div class="flip__face flip__face--back flashcard-side flashcard-back"><strong class="flip__word">${esc(card.ru)}</strong><div class="flashcard-example"><strong lang="ba">${esc(card.example_ba)}</strong><p>${esc(card.example_ru)}</p></div><span class="flashcard-hint">Нажми, чтобы вернуться</span></div>
+    </div>
+  </div>`;
+  const flip = $("#flashcard-flip");
+  const toggleCard = () => {
     State.flashFlipped = !State.flashFlipped;
-    renderFlashcard();
-    $("#flashcard-flip").focus();
+    flip.classList.toggle("is-flipped", State.flashFlipped);
+  };
+  flip.addEventListener("click", (event) => {
+    if (!event.target.closest("#flashcard-audio")) toggleCard();
   });
-  $("#flashcard-audio").addEventListener("click", () => speakText(card.audio_tts || card.ba));
-  $("#flashcard-prev").addEventListener("click", () => {
+  flip.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      toggleCard();
+    }
+  });
+  $("#flashcard-audio").addEventListener("click", (event) => {
+    event.stopPropagation();
+    speakText(card.audio_tts || card.ba);
+  });
+  const previous = document.createElement("button");
+  previous.id = "flashcard-prev";
+  previous.type = "button";
+  previous.className = "btn btn-ghost btn-icon";
+  previous.disabled = State.flashIndex === 0;
+  previous.setAttribute("aria-label", "Предыдущая карточка");
+  previous.innerHTML = icon("i-arrow-left");
+  previous.addEventListener("click", () => {
     if (State.flashIndex > 0) {
       State.flashIndex -= 1;
       State.flashFlipped = false;
       renderFlashcard();
     }
   });
+  $("#lesson-footer").insertBefore(previous, action);
 }
 
 function shuffled(items, salt = 0) {
@@ -428,9 +547,35 @@ function shuffled(items, salt = 0) {
     .map(({ item }) => item);
 }
 
+function renderQuizQuestion() {
+  const lesson = State.currentLesson;
+  const question = lesson.quiz[State.quizIndex];
+  State.lessonPhase = "answering";
+  State.selectedAnswer = null;
+  $("#lesson-modal-title").textContent = question.direction === "ba_to_ru" ? "Выбери перевод на русский" : "Выбери башкирский вариант";
+  $("#lesson-hearts-wrap").hidden = false;
+  $("#lesson-character-mini").hidden = true;
+  $("#lesson-progress-bar").style.setProperty("--progress", `${((lesson.cards.length + State.quizIndex + 1) / (lesson.cards.length + lesson.quiz.length)) * 100}%`);
+  resetLessonFooter();
+  const action = $("#lesson-action-btn");
+  action.disabled = true;
+  action.className = "btn btn-success btn-lg btn-block";
+  action.textContent = "Проверить";
+  const isBashkir = question.direction === "ba_to_ru";
+  $("#lesson-step-container").innerHTML = `${characterStage(PLAYER_CHAR, question.prompt, { lang: isBashkir ? "ba" : "ru", tts: isBashkir ? question.prompt : "" })}<div class="choice-list">${question.options.map((option) => `<button type="button" class="tile choice choice-btn" data-quiz-choice="${esc(option)}"><span class="choice-marker"></span><span ${question.direction === "ru_to_ba" ? 'lang="ba"' : ""}>${esc(option)}</span></button>`).join("")}</div>`;
+  $$('[data-quiz-choice]').forEach((button) => button.addEventListener("click", () => {
+    if (State.lessonPhase !== "answering") return;
+    $$('[data-quiz-choice]').forEach((item) => item.classList.remove("is-selected"));
+    button.classList.add("is-selected");
+    State.selectedAnswer = button.dataset.quizChoice;
+    action.disabled = false;
+  }));
+}
+
 function renderLesson() {
   if (State.currentLesson.lesson_type === "flashcards") {
-    renderFlashcard();
+    if (State.inQuiz) renderQuizQuestion();
+    else renderFlashcard();
     return;
   }
   const lesson = State.currentLesson;
@@ -440,15 +585,15 @@ function renderLesson() {
   State.wordBankPlaced = [];
   State.pairSelection = { ba: null, ru: null };
   State.matchedPairs = new Set();
-  $("#lesson-kind").textContent = `Практика · шаг ${State.currentStepIndex + 1}/${lesson.steps.length}`;
-  $("#lesson-modal-title").textContent = lesson.lesson_title;
-  $("#lesson-instruction").textContent = lesson.instruction;
+  const titles = { word_bank: "Собери фразу", fill_blank: "Выбери пропущенное слово", chat_choice: "Выбери ответ", match_pairs: "Соедини пары" };
+  $("#lesson-modal-title").textContent = titles[step.type] || lesson.instruction;
   $("#lesson-hearts-wrap").hidden = false;
-  $("#lesson-feedback-box").hidden = true;
+  $("#lesson-character-mini").hidden = true;
   $("#lesson-progress-bar").style.setProperty("--progress", `${((State.currentStepIndex + 1) / lesson.steps.length) * 100}%`);
+  resetLessonFooter();
   const action = $("#lesson-action-btn");
   action.disabled = true;
-  action.className = "btn btn-primary btn-lg btn-block";
+  action.className = "btn btn-success btn-lg btn-block";
   action.textContent = "Проверить";
   if (step.type === "word_bank") renderWordBank(step);
   if (step.type === "fill_blank") renderFillBlank(step);
@@ -458,7 +603,7 @@ function renderLesson() {
 
 function renderWordBank(step) {
   const container = $("#lesson-step-container");
-  container.innerHTML = `<h3 class="exercise-title">Собери предложение</h3><p class="exercise-prompt">${esc(step.prompt)}</p><div class="word-slot" id="lesson-word-slot"><span class="word-placeholder">Нажимай на слова ниже</span></div><div class="word-bank" id="lesson-word-bank">${step.bank.map((word, index) => `<button type="button" class="word-chip" data-bank-index="${index}">${esc(word)}</button>`).join("")}</div>`;
+  container.innerHTML = `${characterStage(currentLessonCharacter(), step.prompt)}<div class="answer-line word-slot" id="lesson-word-slot"><span class="word-placeholder">Нажимай на слова ниже</span></div><div class="bank word-bank" id="lesson-word-bank">${step.bank.map((word, index) => `<button type="button" class="tile word-chip" lang="ba" data-bank-index="${index}">${esc(word)}</button>`).join("")}</div>`;
   $$('[data-bank-index]', container).forEach((chip) => {
     chip.addEventListener("click", () => {
       if (State.lessonPhase !== "answering") return;
@@ -473,7 +618,7 @@ function renderWordBank(step) {
 function updateWordSlot(step) {
   const slot = $("#lesson-word-slot");
   slot.innerHTML = State.wordBankPlaced.length
-    ? State.wordBankPlaced.map((item, index) => `<button type="button" class="word-chip word-chip--placed" data-placed-index="${index}">${esc(item.word)}</button>`).join("")
+    ? State.wordBankPlaced.map((item, index) => `<button type="button" class="tile word-chip word-chip--placed" lang="ba" data-placed-index="${index}">${esc(item.word)}</button>`).join("")
     : '<span class="word-placeholder">Нажимай на слова ниже</span>';
   $$('[data-placed-index]', slot).forEach((chip) => {
     chip.addEventListener("click", () => {
@@ -490,13 +635,16 @@ function updateWordSlot(step) {
 
 function renderFillBlank(step) {
   const container = $("#lesson-step-container");
-  container.innerHTML = `<h3 class="exercise-title">Заполни пропуск</h3><p class="exercise-prompt">${esc(step.prompt)}</p><div class="workout-card sentence-card"><span>${esc(step.sentence_pre)}</span><span id="blank-placeholder" class="blank-placeholder">___</span><span>${esc(step.sentence_post)}</span></div><div class="choice-list">${step.options.map((option) => `<button type="button" class="choice-btn" data-choice="${esc(option)}"><span class="choice-marker"></span><span>${esc(option)}</span></button>`).join("")}</div><p class="exercise-hint">${esc(step.hint)}</p>`;
+  const sentence = `${step.sentence_pre} ____ ${step.sentence_post}`.trim();
+  container.innerHTML = `${characterStage(currentLessonCharacter(), sentence, { lang: "ba", stacked: true })}<div class="sentence-card" lang="ba"><span>${esc(step.sentence_pre)}</span><span id="blank-placeholder" class="blank blank-placeholder">___</span><span>${esc(step.sentence_post)}</span></div><div class="choice-list">${step.options.map((option) => `<button type="button" class="tile choice choice-btn" data-choice="${esc(option)}"><span class="choice-marker"></span><span lang="ba">${esc(option)}</span></button>`).join("")}</div><p class="exercise-hint">${esc(step.hint)}</p>`;
   $$('[data-choice]', container).forEach((button) => {
     button.addEventListener("click", () => {
+      if (State.lessonPhase !== "answering") return;
       $$('[data-choice]', container).forEach((item) => item.classList.remove("is-selected"));
       button.classList.add("is-selected");
       State.selectedAnswer = button.dataset.choice;
       $("#blank-placeholder").textContent = button.dataset.choice;
+      $("#blank-placeholder").classList.add("is-selected");
       $("#lesson-action-btn").disabled = false;
     });
   });
@@ -504,9 +652,10 @@ function renderFillBlank(step) {
 
 function renderChatChoice(step) {
   const container = $("#lesson-step-container");
-  container.innerHTML = `<h3 class="exercise-title">Мини-диалог</h3><div class="story-dialog"><div class="avatar avatar--gold">${esc(step.speaker[0] || "Ө")}</div><div class="story-bubble"><div class="story-bubble__meta">${esc(step.speaker)}</div>${esc(step.speaker_ba)}</div></div><p class="exercise-prompt">${esc(step.prompt)}</p><div class="choice-list">${step.options.map((option, index) => `<button type="button" class="choice-btn" data-chat-index="${index}"><span class="choice-number">${index + 1}</span><span>${esc(option.text)}</span></button>`).join("")}</div>`;
+  container.innerHTML = `${characterStage("granny", step.speaker_ba, { lang: "ba", tts: step.speaker_ba })}<p class="exercise-prompt">${esc(step.prompt)}</p><div class="choice-list">${step.options.map((option, index) => `<button type="button" class="tile choice choice-btn" data-chat-index="${index}"><span class="choice-marker"></span><span lang="ba">${esc(option.text)}</span></button>`).join("")}</div>`;
   $$('[data-chat-index]', container).forEach((button) => {
     button.addEventListener("click", () => {
+      if (State.lessonPhase !== "answering") return;
       $$('[data-chat-index]', container).forEach((item) => item.classList.remove("is-selected"));
       button.classList.add("is-selected");
       State.selectedAnswer = step.options[Number(button.dataset.chatIndex)];
@@ -517,25 +666,39 @@ function renderChatChoice(step) {
 
 function renderMatchPairs(step) {
   const container = $("#lesson-step-container");
-  container.innerHTML = `<h3 class="exercise-title">Найди пары</h3><p class="exercise-prompt">${esc(step.prompt)}</p><div class="pairs-progress">Соединено: <strong>${State.matchedPairs.size}/${step.pairs.length}</strong></div><div class="pairs-grid"><div>${shuffled(step.pairs, 1).map((pair) => `<button type="button" class="pair-btn ${State.matchedPairs.has(pair.ba) ? "is-matched" : ""} ${State.pairSelection.ba === pair.ba ? "is-selected" : ""}" data-pair-ba="${esc(pair.ba)}" ${State.matchedPairs.has(pair.ba) ? "disabled" : ""}>${esc(pair.ba)}</button>`).join("")}</div><div>${shuffled(step.pairs, 4).map((pair) => `<button type="button" class="pair-btn ${State.matchedPairs.has(pair.ba) ? "is-matched" : ""} ${State.pairSelection.ru === pair.ru ? "is-selected" : ""}" data-pair-ru="${esc(pair.ru)}" data-pair-key="${esc(pair.ba)}" ${State.matchedPairs.has(pair.ba) ? "disabled" : ""}>${esc(pair.ru)}</button>`).join("")}</div></div>`;
+  container.innerHTML = `${characterStage(currentLessonCharacter(), step.prompt)}<div class="pair-grid pairs-grid"><div lang="ba">${shuffled(step.pairs, 1).map((pair) => `<button type="button" class="tile pair-btn ${State.matchedPairs.has(pair.ba) ? "is-matched" : ""} ${State.pairSelection.ba === pair.ba ? "is-selected" : ""}" data-pair-ba="${esc(pair.ba)}" ${State.matchedPairs.has(pair.ba) ? "disabled" : ""}>${esc(pair.ba)}</button>`).join("")}</div><div>${shuffled(step.pairs, 4).map((pair) => `<button type="button" class="tile pair-btn ${State.matchedPairs.has(pair.ba) ? "is-matched" : ""} ${State.pairSelection.ru === pair.ru ? "is-selected" : ""}" data-pair-ru="${esc(pair.ru)}" data-pair-key="${esc(pair.ba)}" ${State.matchedPairs.has(pair.ba) ? "disabled" : ""}>${esc(pair.ru)}</button>`).join("")}</div></div>`;
   $$('[data-pair-ba]', container).forEach((button) => button.addEventListener("click", () => selectPair(step, "ba", button.dataset.pairBa, button.dataset.pairBa)));
   $$('[data-pair-ru]', container).forEach((button) => button.addEventListener("click", () => selectPair(step, "ru", button.dataset.pairKey, button.dataset.pairRu)));
   $("#lesson-action-btn").disabled = State.matchedPairs.size !== step.pairs.length;
 }
 
 function selectPair(step, side, key, value) {
+  if (State.lessonPhase !== "answering") return;
   State.pairSelection[side] = value;
   if (side === "ba") State.pairSelection.baKey = key;
   else State.pairSelection.ruKey = key;
-  if (State.pairSelection.ba && State.pairSelection.ru) {
-    if (State.pairSelection.baKey === State.pairSelection.ruKey) {
-      State.matchedPairs.add(State.pairSelection.baKey);
-    } else {
-      showToast("Это не пара. Попробуй ещё раз");
-    }
-    State.pairSelection = { ba: null, ru: null };
+  if (!State.pairSelection.ba || !State.pairSelection.ru) {
+    renderMatchPairs(step);
+    return;
   }
-  renderMatchPairs(step);
+  State.lessonPhase = "pair-check";
+  const selectedBa = $$('[data-pair-ba]', $("#lesson-step-container")).find((button) => button.dataset.pairBa === State.pairSelection.baKey);
+  const selectedRu = $$('[data-pair-ru]', $("#lesson-step-container")).find((button) => button.dataset.pairKey === State.pairSelection.ruKey);
+  const matched = State.pairSelection.baKey === State.pairSelection.ruKey;
+  if (matched) State.matchedPairs.add(State.pairSelection.baKey);
+  [selectedBa, selectedRu].filter(Boolean).forEach((button) => button.classList.add(matched ? "is-correct" : "is-wrong"));
+  if (!matched) {
+    State.hearts = Math.max(0, State.hearts - 1);
+    updateTopBar();
+    reactToAnswer($("[data-character-stage]", $("#lesson-step-container")), false, step.prompt);
+  } else if (State.matchedPairs.size === step.pairs.length) {
+    reactToAnswer($("[data-character-stage]", $("#lesson-step-container")), true, step.prompt);
+  }
+  State.pairSelection = { ba: null, ru: null };
+  setTimeout(() => {
+    State.lessonPhase = "answering";
+    renderMatchPairs(step);
+  }, 300);
 }
 
 function correctAnswerText(step) {
@@ -545,63 +708,154 @@ function correctAnswerText(step) {
   return "Все пары соединены верно.";
 }
 
+function showLessonFeedback(correct, answer, finalStep) {
+  const footer = $("#lesson-footer");
+  const feedback = $("#lesson-feedback-box");
+  const action = $("#lesson-action-btn");
+  const titles = ["Верно!", "Точно", "Так и есть"];
+  footer.className = `duo-modal__footer lesson__foot feedback-sheet is-open ${correct ? "" : "feedback-sheet--error"}`;
+  feedback.hidden = false;
+  feedback.innerHTML = `<span class="feedback-sheet__icon">${icon(correct ? "i-check" : "i-x")}</span><div><div class="feedback-sheet__title">${correct ? titles[State.lessonAnswers % titles.length] : "Правильный ответ"}</div><div class="feedback-sheet__text">${correct ? "Можно двигаться дальше." : esc(answer)}</div></div>`;
+  action.className = `btn ${correct ? "btn-success" : "btn-danger"} btn-lg btn-block`;
+  action.textContent = correct ? (finalStep ? "Завершить урок" : "Дальше") : "Понятно";
+  action.disabled = false;
+}
+
+function markLessonChoice(correct, correctAnswer) {
+  const selected = $(".choice-btn.is-selected", $("#lesson-step-container"));
+  selected?.classList.add(correct ? "is-correct" : "is-wrong");
+  if (!correct) {
+    $$(".choice-btn", $("#lesson-step-container")).find((button) => (button.dataset.quizChoice || button.dataset.choice || button.textContent) === correctAnswer)?.classList.add("is-correct");
+  }
+}
+
 async function handleLessonAction() {
   if (State.completing || !State.currentLesson) return;
-  if (State.currentLesson.lesson_type === "flashcards") {
-    if (State.flashIndex < State.currentLesson.cards.length - 1) {
-      State.flashIndex += 1;
-      State.flashFlipped = false;
-      renderFlashcard();
+  if (State.lessonPhase === "complete") {
+    const message = State.completionMessage;
+    closeLesson();
+    updateTopBar();
+    await loadCourseUnits();
+    showToast(message);
+    return;
+  }
+  const lesson = State.currentLesson;
+  const action = $("#lesson-action-btn");
+  if (lesson.lesson_type === "flashcards") {
+    if (!State.inQuiz) {
+      if (State.flashIndex < lesson.cards.length - 1) {
+        State.flashIndex += 1;
+        State.flashFlipped = false;
+        renderFlashcard();
+      } else if (lesson.quiz.length) {
+        State.inQuiz = true;
+        State.quizIndex = 0;
+        renderQuizQuestion();
+      } else {
+        await completeCurrentLesson();
+      }
+      return;
+    }
+    const question = lesson.quiz[State.quizIndex];
+    if (State.lessonPhase === "answering") {
+      const correct = State.selectedAnswer === question.correct_answer;
+      State.lessonAnswers += 1;
+      State.lessonCorrect += Number(correct);
+      State.lessonPhase = "feedback";
+      markLessonChoice(correct, question.correct_answer);
+      reactToAnswer($("[data-character-stage]", $("#lesson-step-container")), correct, question.prompt);
+      showLessonFeedback(correct, question.correct_answer, State.quizIndex === lesson.quiz.length - 1);
+      if (!correct) {
+        State.hearts = Math.max(0, State.hearts - 1);
+        updateTopBar();
+      }
     } else {
-      await completeCurrentLesson();
+      State.quizIndex += 1;
+      if (State.quizIndex < lesson.quiz.length) renderQuizQuestion();
+      else await completeCurrentLesson();
     }
     return;
   }
-  const step = State.currentLesson.steps[State.currentStepIndex];
-  const action = $("#lesson-action-btn");
-  const feedback = $("#lesson-feedback-box");
+  const step = lesson.steps[State.currentStepIndex];
   if (State.lessonPhase === "answering") {
     let correct = false;
     if (step.type === "word_bank") correct = JSON.stringify(State.wordBankPlaced.map((item) => item.word)) === JSON.stringify(step.target);
     if (step.type === "fill_blank") correct = State.selectedAnswer === step.correct;
     if (step.type === "chat_choice") correct = Boolean(State.selectedAnswer?.is_correct);
     if (step.type === "match_pairs") correct = State.matchedPairs.size === step.pairs.length;
+    State.lessonAnswers += 1;
+    State.lessonCorrect += Number(correct);
     State.lessonPhase = "feedback";
-    feedback.hidden = false;
-    feedback.className = `modal-feedback-box ${correct ? "modal-feedback-box--success" : "modal-feedback-box--error"}`;
-    feedback.innerHTML = `<div class="feedback-symbol">${correct ? "✓" : "×"}</div><div><div class="modal-feedback-box__title">${correct ? "Афарин! Всё верно" : "Посмотри правильный вариант"}</div><div class="modal-feedback-box__desc">${correct ? "Можно двигаться дальше." : esc(correctAnswerText(step))}</div></div>`;
+    const answer = correctAnswerText(step);
+    markLessonChoice(correct, answer);
+    const scene = $("[data-character-stage]", $("#lesson-step-container"));
+    const idleLine = $(".speech__text", scene)?.textContent || "";
+    reactToAnswer(scene, correct, idleLine);
+    showLessonFeedback(correct, answer, State.currentStepIndex === lesson.steps.length - 1);
     if (!correct) {
       State.hearts = Math.max(0, State.hearts - 1);
       updateTopBar();
     }
-    action.className = `btn ${correct ? "btn-success" : "btn-primary"} btn-lg btn-block`;
-    action.textContent = State.currentStepIndex === State.currentLesson.steps.length - 1 ? "Завершить урок · +30 XP" : "Продолжить →";
-    action.disabled = false;
   } else {
     State.currentStepIndex += 1;
-    if (State.currentStepIndex < State.currentLesson.steps.length) renderLesson();
+    if (State.currentStepIndex < lesson.steps.length) renderLesson();
     else await completeCurrentLesson();
   }
 }
 
+function showConfetti() {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const confetti = document.createElement("div");
+  confetti.className = "confetti";
+  confetti.setAttribute("aria-hidden", "true");
+  const colors = ["var(--blue-500)", "var(--green-500)", "var(--gold-500)", "var(--red-500)"];
+  for (let index = 0; index < 24; index += 1) {
+    const piece = document.createElement("i");
+    piece.style.setProperty("--i", index);
+    piece.style.setProperty("--x", (index * 41) % 100);
+    piece.style.setProperty("--dx", (index % 7) * 16 - 48);
+    piece.style.setProperty("--r", 180 + (index % 5) * 135);
+    piece.style.setProperty("--c", colors[index % colors.length]);
+    confetti.append(piece);
+  }
+  document.body.append(confetti);
+  setTimeout(() => confetti.remove(), 1600);
+}
+
+function renderLessonComplete(response, score) {
+  State.lessonPhase = "complete";
+  State.completionMessage = response.already_completed ? "Этап уже был пройден — повторные очки не начислены" : `Этап завершён! +${response.awarded_xp} очков`;
+  $("#lesson-modal-title").textContent = "Урок пройден!";
+  $("#lesson-hearts-wrap").hidden = true;
+  $("#lesson-character-mini").hidden = true;
+  $("#lesson-progress-bar").style.setProperty("--progress", "100%");
+  const seconds = Math.max(1, Math.round((Date.now() - State.lessonStartedAt) / 1000));
+  $("#lesson-step-container").innerHTML = `<div class="ornament-bg" aria-hidden="true"></div><div class="lesson-complete">${characterStage(PLAYER_CHAR, "Афарин!", { state: "combo", lang: "ba", stacked: true })}<div class="stat-grid lesson-complete__stats"><div class="card stat-card"><strong>+${formatNumber(response.awarded_xp)}</strong><span>очков</span></div><div class="card stat-card"><strong>${score}%</strong><span>точность</span></div><div class="card stat-card"><strong>${seconds} сек</strong><span>время</span></div></div></div>`;
+  resetLessonFooter();
+  const action = $("#lesson-action-btn");
+  action.className = "btn btn-success btn-lg btn-block";
+  action.textContent = "Продолжить";
+  action.disabled = false;
+  showConfetti();
+}
+
 async function completeCurrentLesson() {
   const lesson = State.currentLesson;
+  const score = State.lessonAnswers ? Math.round((State.lessonCorrect / State.lessonAnswers) * 100) : 100;
   State.completing = true;
   const action = $("#lesson-action-btn");
   setBusy(action, true, "Сохраняем прогресс…");
   try {
-    const response = await apiRequest("/course/complete", {
+    const response = await apiRequest(`/courses/units/${lesson.unit_id}/complete`, {
       method: "POST",
-      body: { unit_id: lesson.unit_id, lesson_id: lesson.lesson_id, lesson_type: lesson.lesson_type },
+      body: { circle: lesson.circle, score },
     });
     State.progress.add(progressKey(lesson.unit_id, lesson.lesson_id));
     State.user.points = response.points;
     State.user.level = response.level;
     State.completing = false;
-    closeLesson();
     updateTopBar();
-    renderCourse();
-    showToast(response.already_completed ? "Урок пройден повторно — прогресс сохранён" : `Урок завершён! +${response.awarded_xp} XP`);
+    renderLessonComplete(response, score);
   } catch (error) {
     State.completing = false;
     setBusy(action, false);
@@ -610,33 +864,47 @@ async function completeCurrentLesson() {
 }
 
 // ---------------------------------------------------------------------------
-// Босс-квест Өләсәй
+// Сюжетные квесты
 // ---------------------------------------------------------------------------
 
-function startBoss(unitId) {
+async function startBoss(unitId, button) {
   const unit = COURSE_UNITS.find((item) => item.unit_id === unitId);
-  if (!unit || (!isBossUnlocked(unit) && !isComplete(unitId, unit.final_boss_node.lesson_id))) return;
-  State.bossUnit = unit;
-  State.bossStageIndex = 0;
-  State.bossPhase = "answering";
-  State.completing = false;
-  State.lastFocused = document.activeElement;
-  $("#modal-boss").hidden = false;
-  document.body.classList.add("modal-open");
-  $("#boss-modal-title").textContent = unit.final_boss_node.quest_title;
-  renderBossStage();
-  $("#boss-close").focus();
+  if (!unit || (!isBossUnlocked(unit) && !isComplete(unitId, unit.final_boss_node.lesson_id)) || State.loadingCourseAction) return;
+  State.loadingCourseAction = true;
+  setBusy(button, true, "…");
+  try {
+    const detail = await apiRequest(`/courses/units/${unitId}`);
+    applyUnitDetail(unit, detail);
+    State.bossUnit = unit;
+    State.bossStageIndex = 0;
+    State.bossPhase = "answering";
+    State.bossAnswers = 0;
+    State.bossCorrect = 0;
+    State.completing = false;
+    resetStreak();
+    await preload([(UNIT_CAST[unitId] || UNIT_CAST[1]).boss, PLAYER_CHAR]);
+    $("#modal-boss").hidden = false;
+    document.body.classList.add("modal-open");
+    $("#boss-modal-title").textContent = unit.final_boss_node.quest_title;
+    renderBossStage();
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    State.loadingCourseAction = false;
+    setBusy(button, false);
+  }
 }
 
 function closeBoss() {
   if (State.completing) return;
   $("#modal-boss").hidden = true;
   document.body.classList.remove("modal-open");
-  State.lastFocused?.focus();
+  State.bossUnit = null;
 }
 
 function bossDialog(stage) {
-  return `<p class="story-context">${esc(stage.story_context)}</p><div class="story-dialog"><div class="avatar avatar--gold">Ө</div><div class="story-bubble"><div class="story-bubble__meta">Өләсәй</div>${esc(stage.npc_speech_ba || "")}</div></div><p class="exercise-prompt">${esc(stage.task_prompt || "")}</p>`;
+  const bossChar = (UNIT_CAST[State.bossUnit.unit_id] || UNIT_CAST[1]).boss;
+  return `<p class="story-context">${esc(stage.story_context)}</p>${characterStage(bossChar, stage.npc_speech_ba || "", { lang: "ba", tts: stage.npc_speech_ba, className: "character-stage--duel", stacked: true })}<div class="boss-player-stage" data-player-stage><div class="character character--static" data-char="${PLAYER_CHAR}" data-state="idle" aria-hidden="true"><img class="character__img" src="${spriteUrl(PLAYER_CHAR)}" width="512" height="512" alt=""></div></div><p class="exercise-prompt">${esc(stage.task_prompt || "")}</p>`;
 }
 
 function renderBossStage() {
@@ -646,79 +914,36 @@ function renderBossStage() {
   const action = $("#boss-action-btn");
   State.bossPhase = "answering";
   State.bossChoice = null;
-  State.bossItems = new Set();
-  State.bossWords = [];
+  $("#boss-footer").className = "duo-modal__footer lesson__foot";
   $("#boss-feedback-box").hidden = true;
   $("#boss-progress-bar").style.setProperty("--progress", `${((State.bossStageIndex + 1) / boss.stages.length) * 100}%`);
   $("#boss-step-label").textContent = `${State.bossStageIndex + 1}/${boss.stages.length}`;
   action.disabled = stage.mechanic !== "reward_screen";
-  action.className = "btn btn-primary btn-lg btn-block";
-  action.textContent = stage.mechanic === "reward_screen" ? "Забрать награду · +100 XP" : "Проверить ответ";
+  action.className = `btn ${stage.mechanic === "reward_screen" ? "btn-success" : "btn-primary"} btn-lg btn-block`;
+  action.textContent = stage.mechanic === "reward_screen" ? "Продолжить · +100 очков" : "Проверить ответ";
 
   if (stage.mechanic === "chat_choice") {
-    container.innerHTML = `${bossDialog(stage)}<div class="choice-list">${stage.options.map((option, index) => `<button class="choice-btn" type="button" data-boss-choice="${index}"><span class="choice-number">${index + 1}</span><span>${esc(option.text_ba)}</span></button>`).join("")}</div>`;
+    container.innerHTML = `${bossDialog(stage)}<div class="choice-list">${stage.options.map((option, index) => `<button class="tile choice choice-btn" type="button" data-boss-choice="${index}"><span class="choice-marker"></span><span lang="ba">${esc(option.text_ba)}</span></button>`).join("")}</div>`;
     $$('[data-boss-choice]', container).forEach((button) => button.addEventListener("click", () => {
+      if (State.bossPhase !== "answering") return;
       $$('[data-boss-choice]', container).forEach((item) => item.classList.remove("is-selected"));
       button.classList.add("is-selected");
       State.bossChoice = stage.options[Number(button.dataset.bossChoice)];
       action.disabled = false;
     }));
   }
-  if (stage.mechanic === "interactive_table") {
-    container.innerHTML = `${bossDialog(stage)}<div class="pairs-progress">Выбрано: <strong id="boss-items-count">0/${stage.required_item_ids.length}</strong></div><div class="table-grid">${stage.table_items.map((item) => `<button class="table-card" type="button" data-table-item="${item.id}"><strong>${esc(item.label_ba)}</strong><span>${esc(item.label_ru)}</span></button>`).join("")}</div>`;
-    $$('[data-table-item]', container).forEach((button) => button.addEventListener("click", () => {
-      const id = button.dataset.tableItem;
-      if (State.bossItems.has(id)) {
-        State.bossItems.delete(id);
-        button.classList.remove("is-selected");
-      } else if (State.bossItems.size < stage.required_item_ids.length) {
-        State.bossItems.add(id);
-        button.classList.add("is-selected");
-      }
-      $("#boss-items-count").textContent = `${State.bossItems.size}/${stage.required_item_ids.length}`;
-      action.disabled = State.bossItems.size !== stage.required_item_ids.length;
-    }));
-  }
-  if (stage.mechanic === "grammar_trap") {
-    container.innerHTML = `${bossDialog(stage)}<div class="workout-card sentence-card"><span>${esc(stage.sentence_start)}</span><span id="boss-blank" class="blank-placeholder">___</span><span>${esc(stage.sentence_end)}</span></div><div class="choice-list">${stage.options.map((option) => `<button class="choice-btn" type="button" data-boss-grammar="${esc(option)}"><span class="choice-marker"></span><span>${esc(option)}</span></button>`).join("")}</div>`;
-    $$('[data-boss-grammar]', container).forEach((button) => button.addEventListener("click", () => {
-      $$('[data-boss-grammar]', container).forEach((item) => item.classList.remove("is-selected"));
-      button.classList.add("is-selected");
-      State.bossChoice = button.dataset.bossGrammar;
-      $("#boss-blank").textContent = State.bossChoice;
-      action.disabled = false;
-    }));
-  }
-  if (stage.mechanic === "boss_word_bank") {
-    const words = shuffled([...stage.correct_sentence_ba, ...stage.distractor_words_ba], 3);
-    container.innerHTML = `${bossDialog(stage)}<div class="word-slot" id="boss-word-slot"><span class="word-placeholder">Собери фразу из слов</span></div><div class="word-bank" id="boss-word-bank">${words.map((word, index) => `<button class="word-chip" type="button" data-boss-bank="${index}">${esc(word)}</button>`).join("")}</div>`;
-    $$('[data-boss-bank]', container).forEach((button) => button.addEventListener("click", () => {
-      State.bossWords.push({ word: words[Number(button.dataset.bossBank)], bankIndex: Number(button.dataset.bossBank) });
-      button.disabled = true;
-      button.classList.add("is-used");
-      updateBossWords();
-    }));
-  }
   if (stage.mechanic === "reward_screen") {
-    container.innerHTML = `<div class="boss-reward"><div class="reward-crown">${icon("i-crown")}</div><h3>Квест пройден!</h3><div class="story-dialog"><div class="avatar avatar--gold">Ө</div><div class="story-bubble"><strong>${esc(stage.final_praise_ba)}</strong><p>«${esc(stage.final_praise_ru)}»</p></div></div><div class="trophy-card"><span>НОВАЯ НАГРАДА</span><h3>${esc(stage.reward_trophy.title)}</h3><p>${esc(stage.reward_trophy.cultural_fact)}</p></div></div>`;
+    const bossChar = (UNIT_CAST[State.bossUnit.unit_id] || UNIT_CAST[1]).boss;
+    container.innerHTML = `<div class="ornament-bg" aria-hidden="true"></div><div class="boss-reward"><div class="reward-characters">${characterStage(bossChar, stage.final_praise_ba, { state: "special", lang: "ba", stacked: true })}<div class="character" data-char="${PLAYER_CHAR}" data-state="combo" aria-hidden="true"><img class="character__img" src="${spriteUrl(PLAYER_CHAR, "combo")}" width="512" height="512" alt=""></div></div><div class="trophy-card"><span>Факт о Башкортостане</span><h3>${esc(stage.reward_trophy.title)}</h3><p>${esc(stage.reward_trophy.cultural_fact)}</p></div></div>`;
+    $("#boss-modal-title").textContent = "Афарин!";
+    showConfetti();
+  } else {
+    $("#boss-modal-title").textContent = boss.quest_title;
   }
-}
-
-function updateBossWords() {
-  const slot = $("#boss-word-slot");
-  slot.innerHTML = State.bossWords.length ? State.bossWords.map((item, index) => `<button class="word-chip word-chip--placed" type="button" data-boss-placed="${index}">${esc(item.word)}</button>`).join("") : '<span class="word-placeholder">Собери фразу из слов</span>';
-  $$('[data-boss-placed]', slot).forEach((button) => button.addEventListener("click", () => {
-    const [removed] = State.bossWords.splice(Number(button.dataset.bossPlaced), 1);
-    const bank = $(`[data-boss-bank="${removed.bankIndex}"]`);
-    bank.disabled = false;
-    bank.classList.remove("is-used");
-    updateBossWords();
-  }));
-  $("#boss-action-btn").disabled = State.bossWords.length === 0;
 }
 
 async function handleBossAction() {
-  if (State.completing) return;
+  if (State.completing || !State.bossUnit) return;
   const boss = State.bossUnit.final_boss_node;
   const stage = boss.stages[State.bossStageIndex];
   if (stage.mechanic === "reward_screen") {
@@ -728,18 +953,25 @@ async function handleBossAction() {
   const action = $("#boss-action-btn");
   const feedback = $("#boss-feedback-box");
   if (State.bossPhase === "answering") {
-    let correct = false;
-    if (stage.mechanic === "chat_choice") correct = Boolean(State.bossChoice?.is_correct);
-    if (stage.mechanic === "interactive_table") correct = stage.required_item_ids.every((id) => State.bossItems.has(id)) && State.bossItems.size === stage.required_item_ids.length;
-    if (stage.mechanic === "grammar_trap") correct = State.bossChoice === stage.correct_option;
-    if (stage.mechanic === "boss_word_bank") correct = JSON.stringify(State.bossWords.map((item) => item.word)) === JSON.stringify(stage.correct_sentence_ba);
+    const correct = stage.mechanic === "chat_choice" && Boolean(State.bossChoice?.is_correct);
+    State.bossAnswers += 1;
+    State.bossCorrect += Number(correct);
     State.bossPhase = "feedback";
-    const explanation = State.bossChoice?.error_hint || stage.grammar_explanation || stage.correct_sentence_ba?.join(" ") || "Вспомни слова из карточек.";
+    const explanation = State.bossChoice?.error_hint || "Вспомни слова из карточек.";
+    const scene = $("[data-character-stage]", $("#boss-step-container"));
+    reactToAnswer(scene, correct, stage.npc_speech_ba || "");
+    setState($("[data-player-stage]", $("#boss-step-container")), correct ? "success" : "fail");
+    $(".choice-btn.is-selected", $("#boss-step-container"))?.classList.add(correct ? "is-correct" : "is-wrong");
+    $("#boss-footer").className = `duo-modal__footer lesson__foot feedback-sheet is-open ${correct ? "" : "feedback-sheet--error"}`;
     feedback.hidden = false;
-    feedback.className = `modal-feedback-box ${correct ? "modal-feedback-box--success" : "modal-feedback-box--error"}`;
-    feedback.innerHTML = `<div class="feedback-symbol">${correct ? "✓" : "×"}</div><div><div class="modal-feedback-box__title">${correct ? "Өләсәй довольна!" : "Попробуем разобраться"}</div><div class="modal-feedback-box__desc">${correct ? "Ответ принят." : esc(explanation)}</div></div>`;
-    action.textContent = "Следующий шаг →";
+    feedback.innerHTML = `<span class="feedback-sheet__icon">${icon(correct ? "i-check" : "i-x")}</span><div><div class="feedback-sheet__title">${correct ? "Верно!" : "Попробуем разобраться"}</div><div class="feedback-sheet__text">${correct ? "Ответ принят." : esc(explanation)}</div></div>`;
+    action.className = `btn ${correct ? "btn-success" : "btn-danger"} btn-lg btn-block`;
+    action.textContent = correct ? "Дальше" : "Понятно";
     action.disabled = false;
+    if (!correct) {
+      State.hearts = Math.max(0, State.hearts - 1);
+      updateTopBar();
+    }
   } else {
     State.bossStageIndex += 1;
     renderBossStage();
@@ -748,22 +980,24 @@ async function handleBossAction() {
 
 async function completeBoss() {
   const boss = State.bossUnit.final_boss_node;
+  const score = State.bossAnswers ? Math.round((State.bossCorrect / State.bossAnswers) * 100) : 100;
   State.completing = true;
   const action = $("#boss-action-btn");
   setBusy(action, true, "Сохраняем награду…");
   try {
-    const response = await apiRequest("/course/complete", {
+    const response = await apiRequest(`/courses/units/${boss.unit_id}/complete`, {
       method: "POST",
-      body: { unit_id: boss.unit_id, lesson_id: boss.lesson_id, lesson_type: "boss" },
+      body: { circle: "boss_story", score },
     });
     State.progress.add(progressKey(boss.unit_id, boss.lesson_id));
     State.user.points = response.points;
     State.user.level = response.level;
+    State.user.badges = response.badges || State.user.badges;
     State.completing = false;
     closeBoss();
     updateTopBar();
-    renderCourse();
-    showToast(response.already_completed ? "Квест пройден повторно" : `Победа! +${response.awarded_xp} XP`);
+    await loadCourseUnits();
+    showToast(response.already_completed ? "Квест пройден повторно — повторные очки не начислены" : `Победа! +${response.awarded_xp} очков`);
   } catch (error) {
     State.completing = false;
     setBusy(action, false);
@@ -776,8 +1010,91 @@ async function completeBoss() {
 // ---------------------------------------------------------------------------
 
 function sourceText(source) {
-  if (!source) return "Источник не указан";
-  return [source.file, source.chapter, source.time].filter(Boolean).join(" · ");
+  if (!source) return "Материалы курса";
+  const title = source.file === "audio/news.mp3" ? "Новости" : source.chapter || source.file || "Материалы курса";
+  const date = source.time ? new Date(source.time) : null;
+  const time = date && !Number.isNaN(date.getTime()) ? date.toLocaleString("ru-RU", { hour: "2-digit", minute: "2-digit" }) : source.time;
+  return [title, time].filter(Boolean).join(" · ");
+}
+
+let communitySearchTimer;
+
+function setCommunityMode(mode) {
+  State.communityMode = mode;
+  $$('[data-community-mode]').forEach((button) => {
+    const active = button.dataset.communityMode === mode;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-selected", String(active));
+  });
+  $("#community-verify").hidden = mode !== "verify";
+  $("#community-propose").hidden = mode !== "propose";
+}
+
+function queueDictionarySearch() {
+  clearTimeout(communitySearchTimer);
+  const query = $("#dictionary-search").value.trim();
+  const requestId = ++State.searchRequest;
+  if (!query) {
+    $("#dictionary-results").innerHTML = "";
+    return;
+  }
+  $("#dictionary-results").innerHTML = loadingBlock("Ищем в общем словаре…");
+  communitySearchTimer = setTimeout(() => searchDictionary(query, requestId), 280);
+}
+
+async function searchDictionary(query, requestId = ++State.searchRequest) {
+  const container = $("#dictionary-results");
+  container.innerHTML = loadingBlock("Ищем в общем словаре…");
+  try {
+    const rows = await apiRequest(`/fragments/search?q=${encodeURIComponent(query)}&limit=20&lang_pair=ba-ru`);
+    if (requestId !== State.searchRequest) return;
+    if (!rows.length) {
+      container.innerHTML = emptyBlock("В словаре пока нет такой фразы", "Переключитесь на «Предложить», чтобы добавить её первым.");
+      return;
+    }
+    const statusLabels = { confirmed: "Подтверждено", pending: "На проверке", expert_review: "Экспертная проверка" };
+    container.innerHTML = `<div class="dictionary-results__head"><strong>Найдено: ${rows.length}</strong><span>Башҡортса — русский</span></div>${rows.map((row) => `<article class="dictionary-result"><div><p class="dictionary-result__ba" lang="ba">${esc(row.text_ba)}</p><p class="dictionary-result__ru">${esc(row.translation)}</p></div><div class="dictionary-result__meta"><span class="chip-static">${esc(statusLabels[row.status] || row.status)}</span>${row.confirmed ? `<span>${formatNumber(row.confirmed)} подтверждений</span>` : ""}<small>${esc(sourceText(row.source))}</small></div></article>`).join("")}`;
+  } catch (error) {
+    if (requestId === State.searchRequest) renderError(container, error, () => searchDictionary(query, requestId));
+  }
+}
+
+function updateProposalCount(input) {
+  $(`#${input.id}-count`).textContent = `${input.value.length}/200`;
+}
+
+async function submitProposal(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  if (!form.reportValidity()) return;
+  const button = $("button[type='submit']", form);
+  const status = $("#proposal-status");
+  setBusy(button, true, "Отправляем…");
+  status.textContent = "";
+  try {
+    const response = await apiRequest("/fragments/propose", {
+      method: "POST",
+      body: {
+        text_ba: $("#proposal-ba").value.trim(),
+        translation: $("#proposal-ru").value.trim(),
+        lang_pair: "ba-ru",
+      },
+    });
+    State.user.points = response.points;
+    State.user.level = response.level;
+    State.user.badges = response.badges;
+    updateTopBar();
+    form.reset();
+    updateProposalCount($("#proposal-ba"));
+    updateProposalCount($("#proposal-ru"));
+    status.className = "form-status form-status--success";
+    status.textContent = `${response.message} +${response.awarded_xp} очков.`;
+  } catch (error) {
+    status.className = "form-status form-status--error";
+    status.textContent = error.message;
+  } finally {
+    setBusy(button, false);
+  }
 }
 
 async function loadDailyTask() {
@@ -802,19 +1119,24 @@ function renderDaily() {
   const disabled = State.dailySubmitting ? "disabled" : "";
   let actions = "";
   if (State.dailyMode === "actions") {
-    actions = `<div class="daily-actions"><button class="btn btn-success" type="button" data-daily="correct" ${disabled}>${icon("i-check")}Перевод верный · +10 XP</button><button class="btn btn-ghost" type="button" data-daily="fix" ${disabled}>${icon("i-pencil")}Исправить · +15 XP</button></div>`;
+    actions = `<div class="daily-actions"><button class="btn btn-success btn-lg" type="button" data-daily="correct" ${disabled}>${icon("i-check")}Верно · +10 очков</button><button class="btn btn-ghost btn-lg" type="button" data-daily="fix" ${disabled}>${icon("i-x")}Неверно</button></div>`;
   }
   if (State.dailyMode === "fix") {
     const correction = State.dailyCorrection || task.translation;
-    actions = `<div class="correction-box"><label class="field"><span class="label">Правильный перевод на русский</span><textarea id="daily-correction" class="input textarea" rows="3" required>${esc(correction)}</textarea></label><div class="daily-actions"><button class="btn btn-primary" type="button" data-daily="submit-fix" ${disabled}>Отправить исправление</button><button class="btn btn-ghost" type="button" data-daily="cancel" ${disabled}>Отмена</button></div></div>`;
+    actions = `<div class="correction-box"><label class="field"><span class="label">Как правильно?</span><textarea id="daily-correction" class="input textarea" rows="3" minlength="2" required>${esc(correction)}</textarea></label><div class="daily-actions"><button class="btn btn-primary btn-lg" type="button" data-daily="submit-fix" ${disabled}>Отправить · +15 очков</button><button class="btn btn-ghost" type="button" data-daily="cancel" ${disabled}>Отмена</button></div></div>`;
   }
   if (State.dailyMode === "result" && State.dailyResult) {
     const result = State.dailyResult;
-    const statusLabels = { confirmed: "Достигнут консенсус", expert_review: "Нужна экспертная проверка", pending: "Голос сохранён" };
-    actions = `<div class="daily-result"><strong>+${formatNumber(result.pointsEarned)} XP · всего ${formatNumber(result.points)} XP</strong><p>${esc(result.message)} ${esc(statusLabels[result.consensus] || result.consensus)}</p><button class="btn btn-primary btn-block" type="button" data-daily="next">Следующий фрагмент →</button></div>`;
+    const statusLabels = { confirmed: "Перевод подтверждён", expert_review: "Нужна экспертная проверка", pending: "Голос сохранён" };
+    actions = `<div class="daily-result"><strong>+${formatNumber(result.pointsEarned)} очков</strong><p>${esc(result.message)} ${esc(statusLabels[result.consensus] || result.consensus)}</p><button class="btn btn-primary btn-block" type="button" data-daily="next">Следующая фраза</button></div>`;
   }
-  body.innerHTML = `<article class="workout-card daily-card"><div class="daily-card__top"><span class="chip-static">Ежедневное задание</span><span>${esc(task.lang_pair)}</span></div><p class="text-ba">${esc(task.text_ba)}</p><p class="source-line">${icon("i-book", "icon icon-sm")}${esc(sourceText(task.source))}</p><div class="translation-panel"><span>Предложенный перевод</span><p>${esc(task.translation)}</p></div>${actions}</article>`;
-  if (State.dailyMode === "fix") $("#daily-correction").focus();
+  const resultScene = State.dailyMode === "result" ? characterStage("granny", "Афарин!", { state: "special", lang: "ba" }) : "";
+  body.innerHTML = `${resultScene}<article class="workout-card card-task daily-card"><div class="daily-card__top"><span class="chip-static">Задание дня</span><span>+15 очков</span></div><div class="daily-phrase"><p class="text-ba" lang="ba">${esc(task.text_ba)}</p><button class="btn btn-ghost btn-icon" type="button" data-daily-tts="${esc(task.text_ba)}" aria-label="Прослушать фразу">${icon("i-volume")}</button></div><p class="source-line">${icon("i-book", "icon icon-sm")}${esc(sourceText(task.source))}</p><div class="translation-panel"><span>Предложенный перевод</span><p>${esc(task.translation)}</p></div>${actions}</article>`;
+  if (State.dailyMode === "fix") {
+    const textarea = $("#daily-correction");
+    textarea.focus();
+    textarea.addEventListener("input", () => { $('[data-daily="submit-fix"]').disabled = textarea.value.trim().length < 2; });
+  }
 }
 
 async function submitDaily(isCorrect) {
@@ -906,12 +1228,12 @@ async function loadRatings() {
 }
 
 function ratingViewModel(category, item) {
-  if (category === "schools") return { name: item.school, meta: `${formatNumber(item.students)} учеников`, value: `${formatNumber(item.points)} XP` };
-  if (category === "classes") return { name: `${item.class_name} класс`, meta: item.school, value: `${formatNumber(item.points)} XP` };
+  if (category === "schools") return { name: item.school, meta: `${formatNumber(item.students)} учеников`, value: `${formatNumber(item.points)} очков` };
+  if (category === "classes") return { name: `${item.class_name} класс`, meta: item.school, value: `${formatNumber(item.points)} очков` };
   if (category === "accuracy") return { name: item.full_name, meta: `${formatNumber(item.correct_answers)} из ${formatNumber(item.total_answers)} ответов`, value: `${formatNumber(item.accuracy)}%` };
   if (category === "vocabulary") return { name: item.full_name, meta: [item.school, item.class_name].filter(Boolean).join(" · "), value: `${formatNumber(item.unique_translations)} слов` };
-  if (category === "corrections") return { name: item.full_name, meta: `${formatNumber(item.points)} XP за исправления`, value: formatNumber(item.corrections) };
-  return { name: item.full_name, meta: [item.school, item.class_name].filter(Boolean).join(" · "), value: `${formatNumber(item.points)} XP` };
+  if (category === "corrections") return { name: item.full_name, meta: `${formatNumber(item.points)} очков за исправления`, value: formatNumber(item.corrections) };
+  return { name: item.full_name, meta: [item.school, item.class_name].filter(Boolean).join(" · "), value: `${formatNumber(item.points)} очков` };
 }
 
 function renderRatings(rows) {
@@ -923,7 +1245,7 @@ function renderRatings(rows) {
   body.innerHTML = rows.map((item) => {
     const view = ratingViewModel(State.ratingCategory, item);
     const mine = item.user_id === State.user.id;
-    return `<div class="rank-item ${mine ? "rank-item--me" : ""}"><div class="rank-badge rank-badge--${item.rank <= 3 ? item.rank : "other"}">${item.rank}</div><div class="avatar">${esc(initials(view.name))}</div><div class="rank-info"><span class="rank-name">${esc(view.name)}${mine ? " · Вы" : ""}</span><span class="rank-meta">${esc(view.meta)}</span></div><strong class="rank-points">${esc(view.value)}</strong></div>`;
+    return `<div class="rank-row rank-item ${mine ? "rank-row--me rank-item--me" : ""}"><div class="rank-badge rank-badge--${item.rank <= 3 ? item.rank : "other"}">${item.rank}</div><div class="avatar">${esc(initials(view.name))}</div><div class="rank-info"><span class="rank-name">${esc(view.name)}${mine ? " · Вы" : ""}</span><span class="rank-meta">${esc(view.meta)}</span></div><strong class="rank-points">${esc(view.value)}</strong></div>`;
   }).join("");
 }
 
@@ -931,33 +1253,48 @@ function renderRatings(rows) {
 // Профиль, учитель и модерация
 // ---------------------------------------------------------------------------
 
+function openInfoSheet(title, text) {
+  const backdrop = document.createElement("div");
+  backdrop.className = "sheet-backdrop";
+  backdrop.innerHTML = `<div class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="info-sheet-title"><h2 id="info-sheet-title">${esc(title)}</h2><p>${esc(text)}</p><button class="btn btn-primary btn-lg btn-block" type="button">Понятно</button></div>`;
+  const onKeydown = (event) => { if (event.key === "Escape") close(); };
+  const close = () => {
+    backdrop.remove();
+    document.removeEventListener("keydown", onKeydown);
+  };
+  $("button", backdrop).addEventListener("click", close);
+  backdrop.addEventListener("click", (event) => { if (event.target === backdrop) close(); });
+  document.addEventListener("keydown", onKeydown);
+  document.body.append(backdrop);
+}
+
 function renderProfile() {
   const user = State.user;
   const earned = new Set(user.badges || []);
+  const canExport = ["teacher", "expert", "admin"].includes(user.role);
   COURSE_UNITS.forEach((unit) => {
     if (isComplete(unit.unit_id, unit.final_boss_node.lesson_id)) earned.add(`boss-${unit.unit_id}`);
   });
   const badges = [
     ...BADGE_CATALOG,
-    ...COURSE_UNITS.map((unit) => ({ id: `boss-${unit.unit_id}`, title: unit.final_boss_node.quest_title, desc: "Финальный квест с Өләсәй пройден", icon: "i-crown" })),
+    ...COURSE_UNITS.map((unit) => ({ id: `boss-${unit.unit_id}`, title: unit.final_boss_node.quest_title, desc: `Пройдите сюжетный квест с персонажем ${unit.character_name}`, icon: "i-crown" })),
   ];
+  const exportBlock = canExport ? `<div class="card section-gap"><h3>Экспорт переводов</h3><p class="muted">Подтверждённый корпус в JSON или CSV.</p><div class="profile-export"><button class="btn btn-ghost" type="button" data-export="json">Скачать JSON</button><button class="btn btn-ghost" type="button" data-export="csv">Скачать CSV</button></div></div>` : "";
+  const cabinetRow = canExport ? `<button class="settings-row" type="button" data-profile-nav="cabinet"><span class="settings-row__label">${icon("i-shield")}Кабинет</span><span class="settings-row__value">Открыть</span></button>` : "";
   $("#profile-content").innerHTML = `<div class="profile-hero"><div class="avatar avatar--blue profile-avatar">${esc(initials(user.full_name))}</div><h2>${esc(user.full_name)}</h2><p>${esc([user.school, user.class_name && `${user.class_name} класс`].filter(Boolean).join(" · ") || user.email || "Башкирская языковая школа")}</p><span class="role-badge">${esc({ student: "Ученик", teacher: "Учитель", expert: "Эксперт УФИЦ РАН", admin: "Администратор УФИЦ РАН" }[user.role] || user.role)}</span></div>
-    <div class="stat-grid profile-stats"><div class="stat stat--gold"><div class="stat__icon">${icon("kurai")}</div><div class="stat__body"><div class="stat__value">${formatNumber(user.points)}</div><div class="stat__label">очков XP</div></div></div><div class="stat"><div class="stat__icon">${icon("i-cup")}</div><div class="stat__body"><div class="stat__value">${formatNumber(user.level)}</div><div class="stat__label">уровень</div></div></div><div class="stat stat--gold"><div class="stat__icon">${icon("i-flame")}</div><div class="stat__body"><div class="stat__value">${formatNumber(user.streak_days)}</div><div class="stat__label">дней серии</div></div></div><div class="stat stat--green"><div class="stat__icon">${icon("i-check")}</div><div class="stat__body"><div class="stat__value">${State.progress.size}</div><div class="stat__label">этапов курса</div></div></div></div>
-    <div class="section-title-row"><h3>Награды</h3><span class="muted">${earned.size}/${badges.length}</span></div><div class="badge-list">${badges.map((badge) => `<div class="badge-item ${earned.has(badge.id) ? "" : "badge-item--locked"}"><div class="badge-item__icon">${icon(badge.icon)}</div><div class="badge-item__info"><div class="badge-item__title">${esc(badge.title)}</div><div class="badge-item__desc">${esc(badge.desc)}</div></div><span class="badge-status">${earned.has(badge.id) ? "Получено" : "Впереди"}</span></div>`).join("")}</div>
-    <div class="profile-actions"><button id="profile-refresh" class="btn btn-ghost btn-block" type="button">Обновить данные профиля</button><button id="logout-button" class="btn btn-ghost btn-block danger-text" type="button">Выйти из аккаунта</button></div>`;
-  $("#profile-refresh").addEventListener("click", refreshProfile);
+    <div class="stat-grid profile-stats"><div class="stat stat--gold"><div class="stat__icon">${icon("kurai")}</div><div class="stat__body"><div class="stat__value">${formatNumber(user.points)}</div><div class="stat__label">очков</div></div></div><div class="stat"><div class="stat__icon">${icon("i-cup")}</div><div class="stat__body"><div class="stat__value">${formatNumber(user.level)}</div><div class="stat__label">уровень</div></div></div><div class="stat stat--gold"><div class="stat__icon">${icon("i-flame")}</div><div class="stat__body"><div class="stat__value">${formatNumber(user.streak_days)}</div><div class="stat__label">дней серии</div></div></div><div class="stat stat--green"><div class="stat__icon">${icon("i-check")}</div><div class="stat__body"><div class="stat__value">${State.progress.size}</div><div class="stat__label">этапов курса</div></div></div></div>
+    <div class="section-title-row"><h3>Награды</h3><span class="muted">${earned.size}/${badges.length}</span></div><div class="badge-list">${badges.map((badge) => `<button class="badge-item ${earned.has(badge.id) ? "" : "badge-item--locked"}" type="button" data-badge="${esc(badge.id)}"><span class="badge-item__icon">${icon(badge.icon)}</span><span class="badge-item__info"><span class="badge-item__title">${esc(badge.title)}</span><span class="badge-status">${earned.has(badge.id) ? "Получено" : "Впереди"}</span></span></button>`).join("")}</div>
+    <div class="section-title-row"><h3>Настройки</h3></div><div class="card settings-card"><button class="settings-row" type="button" data-profile-language><span class="settings-row__label">${icon("i-book")}Языковая пара</span><span class="settings-row__value">Башкирский ↔ русский</span></button><div class="settings-row"><span class="settings-row__label">${icon("i-volume")}Звук</span><span class="settings-row__value">Включён при нажатии</span></div><div class="settings-row"><span class="settings-row__label">${icon("i-profile")}Telegram</span><span class="settings-row__value">Вход сохраняется</span></div>${cabinetRow}</div>
+    ${exportBlock}
+    <div class="profile-actions"><button id="logout-button" class="profile-logout btn-block" type="button">Выйти из аккаунта</button></div>`;
   $("#logout-button").addEventListener("click", () => logout());
-}
-
-async function refreshProfile() {
-  try {
-    State.user = await apiRequest("/auth/me");
-    updateTopBar();
-    renderProfile();
-    showToast("Профиль обновлён");
-  } catch (error) {
-    showToast(error.message);
-  }
+  $("[data-profile-language]").addEventListener("click", () => { $("#language-sheet").hidden = false; });
+  $("[data-profile-nav]")?.addEventListener("click", () => switchTab("cabinet"));
+  $$('[data-badge]', $("#profile-content")).forEach((button) => button.addEventListener("click", () => {
+    const badge = badges.find((item) => item.id === button.dataset.badge);
+    openInfoSheet(badge.title, `${badge.desc}. ${earned.has(badge.id) ? "Награда уже в вашей коллекции." : "Награда ещё впереди."}`);
+  }));
+  $$('[data-export]', $("#profile-content")).forEach((button) => button.addEventListener("click", () => downloadTranslations(button.dataset.export, button)));
 }
 
 async function loadTeacherReport(event) {
@@ -982,7 +1319,7 @@ function renderTeacherReport() {
     return;
   }
   const average = report.students.reduce((sum, student) => sum + student.accuracy, 0) / report.students.length;
-  container.innerHTML = `<div class="report-summary"><div><span>Учеников</span><strong>${report.total_students}</strong></div><div><span>Средняя точность</span><strong>${formatNumber(average.toFixed(1))}%</strong></div></div><div class="table-scroll"><table class="report-table"><thead><tr><th>Ученик</th><th>XP</th><th>Уровень</th><th>Ответы</th><th>Точность</th></tr></thead><tbody>${report.students.map((student) => `<tr><td>${esc(student.full_name)}</td><td>${formatNumber(student.points)}</td><td>${formatNumber(student.level)}</td><td>${formatNumber(student.total_answers)}</td><td><strong>${formatNumber(student.accuracy)}%</strong></td></tr>`).join("")}</tbody></table></div><p class="report-caption">${esc(report.school)} · ${esc(report.class_name)}</p>`;
+  container.innerHTML = `<div class="report-summary"><div><span>Учеников</span><strong>${report.total_students}</strong></div><div><span>Средняя точность</span><strong>${formatNumber(average.toFixed(1))}%</strong></div></div><div class="table-scroll"><table class="report-table"><thead><tr><th>Ученик</th><th>Очки</th><th>Уровень</th><th>Ответы</th><th>Точность</th></tr></thead><tbody>${report.students.map((student) => `<tr><td>${esc(student.full_name)}</td><td>${formatNumber(student.points)}</td><td>${formatNumber(student.level)}</td><td>${formatNumber(student.total_answers)}</td><td><strong>${formatNumber(student.accuracy)}%</strong></td></tr>`).join("")}</tbody></table></div><p class="report-caption">${esc(report.school)} · ${esc(report.class_name)}</p>`;
 }
 
 async function loadModeration() {
@@ -1067,21 +1404,33 @@ function bindEvents() {
     event.preventDefault();
     switchTab(link.dataset.tab);
   }));
-  $("#top-avatar").addEventListener("click", (event) => {
-    event.preventDefault();
-    switchTab("profile");
-  });
+  $$('[data-rail-nav]').forEach((button) => button.addEventListener("click", () => switchTab(button.dataset.railNav)));
   window.addEventListener("hashchange", () => {
     if (State.user) switchTab(location.hash.slice(1));
   });
-  $("#lesson-close").addEventListener("click", closeLesson);
+  const requestLessonClose = () => {
+    if (State.lessonPhase === "complete") closeLesson();
+    else $("#lesson-exit-sheet").hidden = false;
+  };
+  $("#lesson-close").addEventListener("click", requestLessonClose);
+  $("#lesson-stay").addEventListener("click", () => { $("#lesson-exit-sheet").hidden = true; });
+  $("#lesson-exit").addEventListener("click", closeLesson);
   $("#lesson-action-btn").addEventListener("click", handleLessonAction);
   $("#boss-close").addEventListener("click", closeBoss);
   $("#boss-action-btn").addEventListener("click", handleBossAction);
+  $("#language-pair-button").addEventListener("click", () => { $("#language-sheet").hidden = false; });
+  $("#language-close").addEventListener("click", () => { $("#language-sheet").hidden = true; });
+  $("#language-current").addEventListener("click", () => { $("#language-sheet").hidden = true; });
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-character-tts], [data-daily-tts]");
+    if (button) speakText(button.dataset.characterTts || button.dataset.dailyTts);
+  });
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
-    if (!$("#modal-lesson").hidden) closeLesson();
-    if (!$("#modal-boss").hidden) closeBoss();
+    if (!$("#language-sheet").hidden) $("#language-sheet").hidden = true;
+    else if (!$("#lesson-exit-sheet").hidden) $("#lesson-exit-sheet").hidden = true;
+    else if (!$("#modal-lesson").hidden) requestLessonClose();
+    else if (!$("#modal-boss").hidden) closeBoss();
   });
   $("#daily-body").addEventListener("click", (event) => {
     const button = event.target.closest("[data-daily]");
@@ -1093,7 +1442,10 @@ function bindEvents() {
     if (action === "cancel") { State.dailyMode = "actions"; renderDaily(); }
     if (action === "next") loadDailyTask();
   });
-  $$('[data-export]').forEach((button) => button.addEventListener("click", () => downloadTranslations(button.dataset.export, button)));
+  $("#dictionary-search").addEventListener("input", queueDictionarySearch);
+  $$('[data-community-mode]').forEach((button) => button.addEventListener("click", () => setCommunityMode(button.dataset.communityMode)));
+  $("#proposal-form").addEventListener("submit", submitProposal);
+  [$("#proposal-ba"), $("#proposal-ru")].forEach((input) => input.addEventListener("input", () => updateProposalCount(input)));
   $("#teacher-form").addEventListener("submit", loadTeacherReport);
   $("#moderation-refresh").addEventListener("click", loadModeration);
 }

@@ -28,6 +28,8 @@
     <symbol id="i-volume" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15 9a4 4 0 0 1 0 6M18 6a8 8 0 0 1 0 12"/></g></symbol>
     <symbol id="i-download" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m-5-5 5 5 5-5M4 20h16"/></g></symbol>
     <symbol id="i-shield" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5.5c0 4.8 3.2 8 7.5 9.5 4.3-1.5 7.5-4.7 7.5-9.5V6L12 3Z"/><path d="m8.5 12 2.2 2.2 4.8-5"/></g></symbol>
+    <symbol id="i-arrow-left" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7"/></g></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path fill="currentColor" d="M12 1c.6 6.4 4.6 10.4 11 11-6.4.6-10.4 4.6-11 11-.6-6.4-4.6-10.4-11-11C7.4 11.4 11.4 7.4 12 1Z"/></symbol>
     <symbol id="kurai" viewBox="0 0 32 32"><g fill="currentColor"><path d="M16 13 20.5 6.5 16 1 11.5 6.5Z"/><path d="M16 13 20.5 6.5 16 1 11.5 6.5Z" transform="rotate(45 16 16)"/><path d="M16 13 20.5 6.5 16 1 11.5 6.5Z" transform="rotate(90 16 16)"/><path d="M16 13 20.5 6.5 16 1 11.5 6.5Z" transform="rotate(135 16 16)"/><path d="M16 13 20.5 6.5 16 1 11.5 6.5Z" transform="rotate(180 16 16)"/><path d="M16 13 20.5 6.5 16 1 11.5 6.5Z" transform="rotate(225 16 16)"/><path d="M16 13 20.5 6.5 16 1 11.5 6.5Z" transform="rotate(270 16 16)"/><path d="M16 13 20.5 6.5 16 1 11.5 6.5Z" transform="rotate(315 16 16)"/><circle cx="16" cy="16" r="2.8"/></g></symbol>
     <symbol id="flag-ba" viewBox="0 0 32 32"><circle cx="16" cy="16" r="15" fill="#fff" stroke="#E3E7EC"/><clipPath id="circle-clip"><circle cx="16" cy="16" r="15"/></clipPath><g clip-path="url(#circle-clip)"><rect width="32" height="10.6" fill="#1176C8"/><rect y="10.6" width="32" height="10.6" fill="#fff"/><rect y="21.2" width="32" height="10.8" fill="#2BA84A"/><circle cx="16" cy="16" r="4.5" fill="none" stroke="#F2B705" stroke-width=".8"/><circle cx="16" cy="16" r="1.2" fill="#F2B705"/></g></symbol>
   </svg>
@@ -36,12 +38,9 @@
     <div class="auth-ornament" aria-hidden="true"></div>
     <div class="auth-panel">
       <div class="auth-brand">
-        <img src="assets/mascot/mascot_exact.webp" alt="Маскот языковой школы" class="auth-mascot">
-        <div>
-          <span class="auth-brand__ba">Айталай</span>
-          <h1>Башҡортса — һәйбәт!</h1>
-          <p>Учи язык на карточках, проходи квесты и помогай создавать народную базу переводов.</p>
-        </div>
+        <img src="characters/boy_idle.webp" alt="" width="160" height="160" class="auth-mascot" draggable="false">
+        <h1>Айталай</h1>
+        <p lang="ba">Башҡортса — һәйбәт!</p>
       </div>
 
       <div class="auth-switch" role="tablist" aria-label="Авторизация">
@@ -50,9 +49,9 @@
       </div>
 
       <form id="login-form" class="auth-form">
-        <label class="field"><span class="label">Email</span><input class="input" name="email" type="email" autocomplete="email" required value="aigul@example.com"></label>
-        <label class="field"><span class="label">Пароль</span><input class="input" name="password" type="password" autocomplete="current-password" required minlength="4" maxlength="72" value="1234"></label>
-        <button class="btn btn-primary btn-lg btn-block" type="submit">Войти в школу</button>
+        <label class="field"><span class="label">Email</span><input class="input" name="email" type="email" autocomplete="email" required placeholder="you@example.com"></label>
+        <label class="field"><span class="label">Пароль</span><input class="input" name="password" type="password" autocomplete="current-password" required minlength="4" maxlength="72" placeholder="Ваш пароль"></label>
+        <button class="btn btn-primary btn-lg btn-block" type="submit">Войти</button>
       </form>
 
       <form id="register-form" class="auth-form" hidden>
@@ -69,52 +68,67 @@
 
       <p id="auth-status" class="form-status" role="status" aria-live="polite"></p>
 
-      <div class="demo-access">
-        <span>Быстрый вход для демонстрации · пароль 1234</span>
+      <details class="demo-access">
+        <summary>Демо-вход</summary>
+        <span>Выберите роль. Пароль для демонстрации: 1234.</span>
         <div class="demo-access__grid">
-          <button type="button" data-demo-email="aigul@example.com"><strong>Ученик</strong><small>Курс и задания</small></button>
-          <button type="button" data-demo-email="teacher@example.com"><strong>Учитель</strong><small>Отчёт по классу</small></button>
-          <button type="button" data-demo-email="admin@example.com"><strong>Эксперт</strong><small>Модерация УФИЦ РАН</small></button>
+          <button class="btn btn-ghost" type="button" data-demo-email="aigul@example.com">Ученик</button>
+          <button class="btn btn-ghost" type="button" data-demo-email="teacher@example.com">Учитель</button>
+          <button class="btn btn-ghost" type="button" data-demo-email="admin@example.com">Эксперт</button>
         </div>
-      </div>
+      </details>
     </div>
   </section>
 
   <div id="app-shell" class="duo-shell" hidden>
     <header class="duo-topbar">
-      <div class="duo-flag-pill" title="Языковая пара"><svg aria-hidden="true"><use href="#flag-ba"></use></svg><span>Башҡортса</span></div>
-      <div class="duo-stat-pill" title="Серия дней"><svg class="icon icon-sm stat-flame" aria-hidden="true"><use href="#i-flame"></use></svg><span id="top-streak">0</span></div>
-      <div class="duo-stat-pill" title="Очки опыта"><svg class="icon icon-sm stat-kurai" aria-hidden="true"><use href="#kurai"></use></svg><span id="top-points">0</span></div>
-      <div class="duo-stat-pill" title="Жизни в текущем уроке"><svg class="icon icon-sm top-heart" aria-hidden="true"><use href="#i-heart"></use></svg><span id="top-hearts">5</span></div>
-      <a href="#profile" class="duo-avatar-btn" id="top-avatar" title="Профиль">А</a>
+      <button class="duo-flag-pill" id="language-pair-button" type="button" aria-label="Выбрать языковую пару"><svg aria-hidden="true"><use href="#flag-ba"></use></svg><span>ba → ru</span></button>
+      <div class="topbar-stats">
+        <div class="duo-stat-pill" title="Серия дней"><svg class="icon stat-flame" aria-hidden="true"><use href="#i-flame"></use></svg><span id="top-streak">0</span></div>
+        <div class="duo-stat-pill" title="Очки"><svg class="icon stat-kurai" aria-hidden="true"><use href="#kurai"></use></svg><span id="top-points">0</span></div>
+        <div class="duo-stat-pill" id="top-hearts-wrap" title="Жизни в текущем уроке"><svg class="icon top-heart" aria-hidden="true"><use href="#i-heart"></use></svg><span id="top-hearts">5</span></div>
+      </div>
     </header>
+    <div class="ornament-strip" aria-hidden="true"></div>
 
     <main class="duo-content">
       <section id="screen-course" class="screen"><div id="course-content" class="path-container"></div></section>
 
       <section id="screen-community" class="screen" hidden>
-        <div class="screen-heading">
-          <span class="kicker">Китапхана переводов</span>
-          <h2>Задание дня</h2>
-          <p>Проверь перевод, укажи источник ошибки или предложи свой вариант. Каждый голос влияет на консенсус.</p>
+        <div class="screen-heading"><h2>Китапхана переводов</h2></div>
+        <label class="field dictionary-search">
+          <span class="label">Поиск по словарю</span>
+          <input id="dictionary-search" class="input" type="search" autocomplete="off" placeholder="Слово или фраза">
+        </label>
+        <div id="dictionary-results" class="dictionary-results" aria-live="polite"></div>
+        <div class="tabs community-tabs" role="tablist" aria-label="Действия сообщества">
+          <button class="tab is-active" type="button" role="tab" aria-selected="true" data-community-mode="verify">Проверка</button>
+          <button class="tab" type="button" role="tab" aria-selected="false" data-community-mode="propose">Предложить</button>
         </div>
-        <div class="export-strip">
-          <div><strong>Подтверждённая база</strong><span>Скачать переводы для исследования</span></div>
-          <button class="btn btn-ghost btn-small" type="button" data-export="json"><svg class="icon icon-sm" aria-hidden="true"><use href="#i-download"></use></svg>JSON</button>
-          <button class="btn btn-ghost btn-small" type="button" data-export="csv"><svg class="icon icon-sm" aria-hidden="true"><use href="#i-download"></use></svg>CSV</button>
+        <div id="community-verify" role="tabpanel">
+          <div class="section-title-row"><div><h3>Задание дня</h3><p class="muted">Проверь перевод и получи до 15 очков.</p></div></div>
+          <div id="daily-body" aria-live="polite"></div>
         </div>
-        <div id="daily-body" aria-live="polite"></div>
+        <div id="community-propose" role="tabpanel" hidden>
+          <form id="proposal-form" class="card role-form">
+            <h3>Предложить новую фразу</h3>
+            <label class="field"><span class="label">Фраза на башкирском</span><textarea id="proposal-ba" class="input textarea" name="text_ba" lang="ba" rows="3" minlength="2" maxlength="200" required></textarea><span id="proposal-ba-count" class="field__hint">0/200</span></label>
+            <label class="field"><span class="label">Перевод</span><textarea id="proposal-ru" class="input textarea" name="translation" rows="3" minlength="2" maxlength="200" required></textarea><span id="proposal-ru-count" class="field__hint">0/200</span></label>
+            <button class="btn btn-primary btn-lg btn-block" type="submit">Отправить · +20 очков</button>
+            <p id="proposal-status" class="form-status" role="status" aria-live="polite"></p>
+          </form>
+        </div>
       </section>
 
       <section id="screen-ratings" class="screen" hidden>
-        <div class="screen-heading"><span class="kicker">Һәләтле уҡыусылар</span><h2>Рейтинги</h2><p>Шесть категорий и пять периодов — данные обновляются из общей базы.</p></div>
+        <div class="screen-heading"><h2>Рейтинг</h2></div>
         <div id="rating-categories" class="tabs" role="tablist" aria-label="Категория рейтинга"></div>
         <div id="rating-periods" class="period-chips" role="group" aria-label="Период рейтинга"></div>
         <div id="rating-body" class="rank-list" aria-live="polite"></div>
       </section>
 
       <section id="screen-cabinet" class="screen" hidden>
-        <div class="screen-heading"><span class="kicker">Рабочее пространство</span><h2>Кабинет</h2><p id="cabinet-subtitle">Инструменты для вашей роли.</p></div>
+        <div class="screen-heading"><h2>Кабинет</h2><p id="cabinet-subtitle">Инструменты для вашей роли.</p></div>
         <div id="teacher-panel" hidden>
           <form id="teacher-form" class="card role-form">
             <h3>Отчёт по классу</h3>
@@ -135,34 +149,57 @@
 
     <nav class="duo-bottom-nav" aria-label="Основная навигация">
       <a class="duo-nav-tab is-active" href="#course" data-tab="course"><svg class="icon" aria-hidden="true"><use href="#i-home"></use></svg><span>Курс</span></a>
-      <a class="duo-nav-tab" href="#community" data-tab="community"><svg class="icon" aria-hidden="true"><use href="#i-book"></use></svg><span>Задание</span></a>
+      <a class="duo-nav-tab" href="#community" data-tab="community"><svg class="icon" aria-hidden="true"><use href="#i-book"></use></svg><span>Сообщество</span></a>
       <a class="duo-nav-tab" href="#ratings" data-tab="ratings"><svg class="icon" aria-hidden="true"><use href="#i-cup"></use></svg><span>Рейтинг</span></a>
       <a class="duo-nav-tab" href="#cabinet" data-tab="cabinet" id="cabinet-nav" hidden><svg class="icon" aria-hidden="true"><use href="#i-shield"></use></svg><span>Кабинет</span></a>
       <a class="duo-nav-tab" href="#profile" data-tab="profile"><svg class="icon" aria-hidden="true"><use href="#i-profile"></use></svg><span>Профиль</span></a>
     </nav>
+
+    <aside class="app-rail" aria-label="Сводка">
+      <div class="card rail-stat"><span class="muted">Текущая серия</span><strong><span id="rail-streak">0</span> дней</strong></div>
+      <div class="card"><h3>Задание дня</h3><p class="muted">Проверь народный перевод.</p><button class="btn btn-ghost btn-block" type="button" data-rail-nav="community">Открыть</button></div>
+      <div class="card"><h3>Рейтинг</h3><p class="muted">Сравни свой результат с другими учениками.</p><button class="btn btn-ghost btn-block" type="button" data-rail-nav="ratings">Смотреть</button></div>
+    </aside>
   </div>
 
-  <div id="modal-lesson" class="duo-modal" role="dialog" aria-modal="true" aria-labelledby="lesson-modal-title" hidden>
-    <div class="duo-modal__header">
+  <div id="modal-lesson" class="duo-modal lesson" role="dialog" aria-modal="true" aria-labelledby="lesson-modal-title" hidden>
+    <div class="duo-modal__header lesson__top">
       <button class="btn btn-ghost btn-icon" type="button" id="lesson-close" aria-label="Закрыть урок"><svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg></button>
-      <div class="progress" style="flex:1" role="progressbar" aria-label="Прогресс урока"><span class="progress__bar" id="lesson-progress-bar"></span></div>
-      <div id="lesson-hearts-wrap" class="modal-hearts"><svg class="icon icon-sm" aria-hidden="true"><use href="#i-heart"></use></svg><span id="lesson-hearts">5</span></div>
+      <div class="progress" role="progressbar" aria-label="Прогресс урока"><span class="progress__bar" id="lesson-progress-bar"></span></div>
+      <div id="lesson-hearts-wrap" class="modal-hearts"><svg class="icon" aria-hidden="true"><use href="#i-heart"></use></svg><span id="lesson-hearts">5</span></div>
+      <img id="lesson-character-mini" class="lesson__mini-character" src="characters/boy_idle.webp" width="48" height="48" alt="" hidden>
     </div>
-    <div class="duo-modal__body">
-      <div class="lesson-heading"><span id="lesson-kind" class="kicker"></span><h2 id="lesson-modal-title"></h2><p id="lesson-instruction" class="muted"></p></div>
-      <div id="lesson-step-container"></div>
+    <div class="duo-modal__body lesson__body">
+      <h2 id="lesson-modal-title" class="lesson__title"></h2>
+      <div id="lesson-step-container" class="lesson__task"></div>
     </div>
-    <div class="duo-modal__footer"><div id="lesson-feedback-box" class="modal-feedback-box" hidden></div><button class="btn btn-primary btn-lg btn-block" type="button" id="lesson-action-btn">Проверить</button></div>
+    <div class="duo-modal__footer lesson__foot" id="lesson-footer"><div id="lesson-feedback-box" class="feedback-sheet__inner" hidden></div><button class="btn btn-primary btn-lg btn-block" type="button" id="lesson-action-btn">Проверить</button></div>
   </div>
 
-  <div id="modal-boss" class="duo-modal duo-modal--boss" role="dialog" aria-modal="true" aria-labelledby="boss-modal-title" hidden>
-    <div class="duo-modal__header">
+  <div id="modal-boss" class="duo-modal duo-modal--boss lesson" role="dialog" aria-modal="true" aria-labelledby="boss-modal-title" hidden>
+    <div class="duo-modal__header lesson__top">
       <button class="btn btn-ghost btn-icon" type="button" id="boss-close" aria-label="Закрыть квест"><svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg></button>
-      <div class="progress" style="flex:1" role="progressbar" aria-label="Прогресс квеста"><span class="progress__bar" id="boss-progress-bar"></span></div>
+      <div class="progress" role="progressbar" aria-label="Прогресс квеста"><span class="progress__bar" id="boss-progress-bar"></span></div>
       <span id="boss-step-label" class="boss-step-label">1/5</span>
     </div>
-    <div class="duo-modal__body"><div class="lesson-heading"><span class="kicker">Босс-квест</span><h2 id="boss-modal-title"></h2></div><div id="boss-step-container"></div></div>
-    <div class="duo-modal__footer"><div id="boss-feedback-box" class="modal-feedback-box" hidden></div><button class="btn btn-primary btn-lg btn-block" type="button" id="boss-action-btn">Проверить ответ</button></div>
+    <div class="duo-modal__body lesson__body"><h2 id="boss-modal-title" class="lesson__title"></h2><div id="boss-step-container" class="lesson__task"></div></div>
+    <div class="duo-modal__footer lesson__foot" id="boss-footer"><div id="boss-feedback-box" class="feedback-sheet__inner" hidden></div><button class="btn btn-primary btn-lg btn-block" type="button" id="boss-action-btn">Проверить ответ</button></div>
+  </div>
+
+  <div id="lesson-exit-sheet" class="sheet-backdrop" hidden>
+    <div class="bottom-sheet" role="alertdialog" aria-modal="true" aria-labelledby="lesson-exit-title">
+      <h2 id="lesson-exit-title">Выйти?</h2><p>Прогресс урока не сохранится.</p>
+      <button class="btn btn-success btn-lg btn-block" id="lesson-stay" type="button">Остаться</button>
+      <button class="btn btn-ghost btn-block" id="lesson-exit" type="button">Выйти</button>
+    </div>
+  </div>
+
+  <div id="language-sheet" class="sheet-backdrop" hidden>
+    <div class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="language-sheet-title">
+      <div class="bottom-sheet__head"><h2 id="language-sheet-title">Языковая пара</h2><button class="btn btn-ghost btn-icon" id="language-close" type="button" aria-label="Закрыть"><svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg></button></div>
+      <button class="tile is-selected" type="button" id="language-current">Башкирский ↔ русский</button>
+      <p class="muted">Другие языковые пары появятся позже.</p>
+    </div>
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"><svg aria-hidden="true" viewBox="0 0 32 32"><use href="#kurai"></use></svg><span id="toast-text"></span></div>

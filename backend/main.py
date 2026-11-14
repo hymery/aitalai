@@ -58,6 +58,8 @@ from schemas import (
     CourseUnitDetailResponse,
     CourseUnitSummary,
     DailyTaskResponse,
+    FragmentProposal,
+    FragmentProposalResponse,
     ModerationResolve,
     TelegramAuth,
     TranslationResponse,
@@ -1078,6 +1080,149 @@ def export_translations(
             "Content-Disposition": 'attachment; filename="confirmed_translations.csv"'
         },
     )
+
+
+@app.get(
+    "/fragments/search",
+    tags=["Задания"],
+    summary="Найти слово или фразу в общем словаре",
+)
+def search_fragments(
+    q: str = Query(min_length=1, max_length=100),
+    limit: int = Query(20, ge=1, le=50),
+    lang_pair: str = Query("ba-ru", min_length=1, max_length=10),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    query_text = q.strip()
+    if not query_text:
+        raise HTTPException(status_code=422, detail="Введите слово или фразу для поиска.")
+    normalized_query = query_text.casefold()
+    rows = (
+        db.query(Fragment, Translation)
+        .join(Translation, Translation.fragment_id == Fragment.id)
+        .filter(
+            Fragment.lang_pair == lang_pair,
+            Translation.lang_pair == lang_pair,
+        )
+        .order_by(
+            case((Translation.status == "confirmed", 0), else_=1),
+            Fragment.id,
+            Translation.id,
+        )
+        .all()
+    )
+    rows = [
+        (fragment, translation)
+        for fragment, translation in rows
+        if normalized_query in fragment.text_ba.casefold()
+        or normalized_query in translation.translation.casefold()
+    ][:limit]
+    return [
+        {
+            "fragment_id": fragment.id,
+            "translation_id": translation.id,
+            "text_ba": fragment.text_ba,
+            "translation": translation.translation,
+            "lang_pair": fragment.lang_pair,
+            "source": fragment.source,
+            "status": translation.status,
+            "confirmed": translation.confirmed,
+        }
+        for fragment, translation in rows
+    ]
+
+
+def validate_proposal_text(text: str) -> None:
+    lowered = text.casefold()
+    if (
+        any(marker in lowered for marker in ("http://", "https://", "www.", "<script"))
+        or "<" in text
+        or ">" in text
+        or any(char * 6 in text for char in set(text) if char.strip())
+        or not any(char.isalnum() for char in text)
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="Текст не прошёл проверку. Уберите лишнее и отправьте снова.",
+        )
+
+
+@app.post(
+    "/fragments/propose",
+    response_model=FragmentProposalResponse,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Задания"],
+    summary="Предложить новую башкирско-русскую пару",
+)
+def propose_fragment(
+    payload: FragmentProposal,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    text_ba = payload.text_ba.strip()
+    translation_text = payload.translation.strip()
+    validate_proposal_text(text_ba)
+    validate_proposal_text(translation_text)
+    existing_pairs = (
+        db.query(Fragment.text_ba, Translation.translation)
+        .join(Translation, Translation.fragment_id == Fragment.id)
+        .filter(
+            Fragment.lang_pair == payload.lang_pair,
+            Translation.lang_pair == payload.lang_pair,
+        )
+        .all()
+    )
+    duplicate = next(
+        (
+            pair
+            for pair in existing_pairs
+            if pair.text_ba.casefold() == text_ba.casefold()
+            and pair.translation.casefold() == translation_text.casefold()
+        ),
+        None,
+    )
+    if duplicate is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Такая пара уже есть в словаре. Попробуйте найти её через поиск.",
+        )
+
+    fragment = Fragment(
+        text_ba=text_ba,
+        lang_pair=payload.lang_pair,
+        source={
+            "file": "community",
+            "chapter": f"Предложено: {user.full_name}",
+            "time": datetime.now(timezone.utc).isoformat(),
+        },
+        wrong_variants={},
+    )
+    db.add(fragment)
+    db.flush()
+    translation = Translation(
+        fragment_id=fragment.id,
+        lang_pair=payload.lang_pair,
+        translation=translation_text,
+        confirmed=0,
+        status="pending",
+    )
+    db.add(translation)
+    db.flush()
+    user.points += 20
+    user.level = user.points // 100 + 1
+    award_badges(db, user)
+    db.commit()
+    db.refresh(user)
+    return {
+        "fragment_id": fragment.id,
+        "translation_id": translation.id,
+        "awarded_xp": 20,
+        "points": user.points,
+        "level": user.level,
+        "badges": user.badges,
+        "message": "Спасибо! Фразу проверят другие ученики.",
+    }
 
 
 COURSE_CIRCLES = {

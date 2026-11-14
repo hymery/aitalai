@@ -17,6 +17,8 @@ from main import (
     export_translations,
     get_course_unit_detail,
     list_course_units,
+    propose_fragment,
+    search_fragments,
     rating_accuracy,
     rating_classes,
     rating_corrections,
@@ -35,6 +37,7 @@ from schemas import (
     CourseCircleCompleteResponse,
     CourseUnitDetailResponse,
     CourseUnitSummary,
+    FragmentProposal,
     ModerationResolve,
 )
 from seed import seed_answers, seed_fragments, seed_users
@@ -233,6 +236,65 @@ class CoursesApiTestCase(unittest.TestCase):
         self.assertEqual(result["awarded_xp"], 15)
         self.assertEqual(result["next_circle"], "circle_2")
         self.assertTrue(result["progress"]["circle_2"]["unlocked"])
+
+    def test_dictionary_search_and_community_proposal(self):
+        daily = daily_task(db=self.db, _=self.student)
+        found = search_fragments(
+            q=daily.text_ba,
+            limit=10,
+            lang_pair="ba-ru",
+            db=self.db,
+            _=self.student,
+        )
+        self.assertTrue(any(row["fragment_id"] == daily.fragment_id for row in found))
+        case_insensitive = search_fragments(
+            q=daily.text_ba.swapcase(),
+            limit=10,
+            lang_pair="ba-ru",
+            db=self.db,
+            _=self.student,
+        )
+        self.assertTrue(
+            any(row["fragment_id"] == daily.fragment_id for row in case_insensitive)
+        )
+
+        points_before = self.student.points
+        proposed = propose_fragment(
+            FragmentProposal(
+                text_ba="Яңы һүҙ",
+                translation="Новое слово",
+            ),
+            db=self.db,
+            user=self.student,
+        )
+        self.assertEqual(proposed["awarded_xp"], 20)
+        self.assertEqual(proposed["points"], points_before + 20)
+        self.assertGreater(proposed["fragment_id"], 0)
+        self.assertGreater(proposed["translation_id"], 0)
+        proposed_search = search_fragments(
+            q="Яңы һүҙ",
+            limit=10,
+            lang_pair="ba-ru",
+            db=self.db,
+            _=self.student,
+        )
+        self.assertEqual(proposed_search[0]["translation"], "Новое слово")
+        self.assertEqual(proposed_search[0]["status"], "pending")
+
+        with self.assertRaises(HTTPException) as duplicate:
+            propose_fragment(
+                FragmentProposal(text_ba="Яңы һүҙ", translation="Новое слово"),
+                db=self.db,
+                user=self.student,
+            )
+        self.assertEqual(duplicate.exception.status_code, 409)
+        with self.assertRaises(HTTPException) as spam:
+            propose_fragment(
+                FragmentProposal(text_ba="https://spam.example", translation="Ссылка"),
+                db=self.db,
+                user=self.student,
+            )
+        self.assertEqual(spam.exception.status_code, 422)
 
     def test_community_endpoints_remain_functional(self):
         daily = daily_task(db=self.db, _=self.student)
