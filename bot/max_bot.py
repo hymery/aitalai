@@ -171,11 +171,19 @@ class MaxBot:
             return []
         return [{"type": "inline_keyboard", "payload": {"buttons": rows}}]
 
-    async def send_message(self, user_id: int, text: str) -> dict[str, Any]:
-        payload: dict[str, Any] = {"text": text}
-        attachments = self.keyboard()
-        if attachments:
-            payload["attachments"] = attachments
+    def fallback_keyboard(self) -> list[dict[str, Any]]:
+        """Обычные ссылки, если MAX ещё не разрешает open_app для этого URL."""
+        rows: list[list[dict[str, Any]]] = []
+        deeplink = self.miniapp_deeplink()
+        if deeplink:
+            rows.append([{"type": "link", "text": "Открыть в MAX", "url": deeplink}])
+        if self.webapp_url:
+            rows.append([{"type": "link", "text": "Открыть сайт", "url": self.webapp_url}])
+        if not rows:
+            return []
+        return [{"type": "inline_keyboard", "payload": {"buttons": rows}}]
+
+    async def _post_message(self, user_id: int, payload: dict[str, Any]) -> dict[str, Any]:
         # Тело POST /messages передаётся отдельно от user_id.
         async with self.session.post(
             f"{API_BASE}/messages", params={"user_id": user_id}, json=payload
@@ -184,6 +192,23 @@ class MaxBot:
             if response.status >= 400:
                 raise RuntimeError(f"MAX API {response.status}: {raw[:300]}")
             return json.loads(raw) if raw.strip() else {}
+
+    async def send_message(self, user_id: int, text: str) -> dict[str, Any]:
+        payload: dict[str, Any] = {"text": text}
+        attachments = self.keyboard()
+        if attachments:
+            payload["attachments"] = attachments
+        try:
+            return await self._post_message(user_id, payload)
+        except RuntimeError as exc:
+            if not attachments or "Link not found" not in str(exc):
+                raise
+            logger.warning(
+                "MAX отклонил open_app: привяжите HTTPS-URL мини-приложения "
+                "в кабинете MAX для партнёров. Отправляю запасные ссылки."
+            )
+            payload["attachments"] = self.fallback_keyboard()
+            return await self._post_message(user_id, payload)
 
     @staticmethod
     def sender(update: dict[str, Any]) -> tuple[int | None, str]:

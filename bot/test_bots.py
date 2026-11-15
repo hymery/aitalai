@@ -95,6 +95,21 @@ class MaxBotTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(await bot.send_daily_reminders("2026-11-14"), 0)
             await bot.close()
 
+    async def test_unregistered_miniapp_falls_back_to_links(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            bot = MaxBot("test", "https://example.com", MaxStore(Path(directory) / "max.json"))
+            bot.bot_username = "aitalai_bot"
+            post = AsyncMock(side_effect=[RuntimeError("MAX API 404: Link not found"), {}])
+            bot._post_message = post  # type: ignore[method-assign]
+
+            await bot.send_message(42, "Добро пожаловать")
+
+            self.assertEqual(post.await_count, 2)
+            fallback_buttons = post.await_args_list[1].args[1]["attachments"][0]["payload"]["buttons"]
+            self.assertEqual(fallback_buttons[0][0]["type"], "link")
+            self.assertEqual(fallback_buttons[1][0]["url"], "https://example.com")
+            await bot.close()
+
     async def test_configure_updates_commands(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             bot = MaxBot("test", "https://example.com", MaxStore(Path(directory) / "max.json"))
