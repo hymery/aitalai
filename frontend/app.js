@@ -12,6 +12,7 @@ import { AVATAR_CHARACTERS, AVATAR_COLORS, AVATAR_UNLOCK, AWARDS } from "./cabin
 import "./bashkir-keyboard.js";
 import { speakBashkir } from "./speech.js";
 import { initClouds, refreshClouds } from "./clouds.js";
+import { initAiDialogs } from "./ai-dialogs.js";
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -86,6 +87,7 @@ const State = {
 };
 
 let toastTimer;
+let aiDialogs;
 
 function esc(value) {
   return String(value ?? "")
@@ -205,7 +207,7 @@ async function finishAuth(payload) {
   renderRatingControls();
   await loadCourseUnits();
   const requested = location.hash.slice(1);
-  switchTab(["course", "community", "ratings", "cabinet", "profile"].includes(requested) ? requested : "course");
+  switchTab(["course", "dialogs", "community", "ratings", "cabinet", "profile"].includes(requested) ? requested : "course");
 }
 
 async function login(email, password, button) {
@@ -290,17 +292,17 @@ function applyRoleLayout() {
   $("#cabinet-subtitle").textContent = canModerate
     ? "Отчёты, экспертная модерация и подтверждение переводов."
     : "Сводная успеваемость вашего класса.";
-  $(".duo-bottom-nav").style.setProperty("--nav-count", 4);
+  $(".duo-bottom-nav").style.setProperty("--nav-count", 5);
   $("#teacher-school").value = State.user.school || "";
   $("#teacher-class").value = State.user.class_name || (State.user.email === "teacher@example.com" ? "7А" : "");
 }
 
 function switchTab(tab) {
   if (tab === "profile") tab = "cabinet";
-  if (!["course", "community", "ratings", "cabinet"].includes(tab)) tab = "course";
+  if (!["course", "dialogs", "community", "ratings", "cabinet"].includes(tab)) tab = "course";
   State.activeTab = tab;
   document.body.dataset.activeTab = tab;
-  const desktopTitles = { course: "Учебный путь", community: "Китапхана переводов", ratings: "Рейтинг", cabinet: "Личный кабинет" };
+  const desktopTitles = { course: "Учебный путь", dialogs: "ИИ-диалоги", community: "Китапхана переводов", ratings: "Рейтинг", cabinet: "Личный кабинет" };
   $("#desktop-page-title").textContent = desktopTitles[tab];
   $$(".duo-nav-tab").forEach((link) => {
     const active = link.dataset.tab === tab;
@@ -308,12 +310,13 @@ function switchTab(tab) {
     if (active) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
   });
-  ["course", "community", "ratings", "cabinet"].forEach((name) => {
+  ["course", "dialogs", "community", "ratings", "cabinet"].forEach((name) => {
     $(`#screen-${name}`).hidden = name !== tab;
   });
-  $("#top-hearts-wrap").hidden = ["community", "ratings", "cabinet"].includes(tab);
+  $("#top-hearts-wrap").hidden = ["dialogs", "community", "ratings", "cabinet"].includes(tab);
   if (location.hash !== `#${tab}`) history.replaceState(null, "", `#${tab}`);
   if (tab === "course") renderCourse();
+  if (tab === "dialogs") aiDialogs?.show();
   if (tab === "community") {
     setCommunityMode(State.communityMode);
     if (!State.dailyTask) loadDailyTask();
@@ -376,6 +379,7 @@ async function loadCourseUnits() {
       }
     });
     renderCourse();
+    aiDialogs?.refresh().catch(() => {});
   } catch (error) {
     renderError(container, error, loadCourseUnits);
   }
@@ -415,6 +419,8 @@ function renderCourse() {
     });
     const bossUnlocked = isBossUnlocked(unit);
     const bossClass = bossDone ? "is-done" : bossUnlocked ? "" : "is-locked";
+    const dialogScenario = aiDialogs?.scenarioForUnit(unit.unit_id);
+    const dialogNode = dialogScenario ? `<div class="path-row path-row--center dialog-row"><div class="node-wrap"><div class="node-circle node-circle--dialog"><button class="node node--dialog ${dialogScenario.completed ? "is-done" : dialogScenario.unlocked ? "" : "is-locked"}" type="button" data-dialog-scenario="${esc(dialogScenario.id)}" data-locked="${!dialogScenario.unlocked}" aria-label="Диалог: ${esc(dialogScenario.title_ru)}"><img src="${spriteUrl(dialogScenario.character, "idle")}" width="64" height="64" alt="" draggable="false"><span class="node__badge">${icon(dialogScenario.completed ? "i-check" : dialogScenario.unlocked ? "i-spark" : "i-lock")}</span></button><span class="dialog-node__label">Диалог</span></div></div></div>` : "";
     return `<section class="course-unit course-unit--${unit.accent} ${unitUnlocked ? "" : "is-locked"}">
       <div class="unit-banner unit-banner--${unit.accent}">
         <div><div class="unit-banner__num">Раздел ${unitIndex + 1}</div><div class="unit-banner__title">${esc(unit.unit_title)}</div><div class="unit-banner__desc">${esc(unit.unit_subtitle)}</div></div>
@@ -424,6 +430,7 @@ function renderCourse() {
         <figure class="unit-scene unit-scene--${unitIndex + 1}"><img src="${scene.image}" width="512" height="512" alt="${esc(scene.alt)}" loading="${unitIndex ? "lazy" : "eager"}" draggable="false"></figure>
         <div class="path-tree path-tree--${unit.accent}"><svg class="path-svg" aria-hidden="true"></svg>${rows.join("")}
           <div class="path-row path-row--center boss-row"><div class="node-wrap"><div class="node-circle node-circle--boss"><button class="node node--boss ${bossClass}" type="button" data-boss-unit="${unit.unit_id}" data-locked="${!(bossUnlocked || bossDone)}" aria-label="${esc(unit.final_boss_node.quest_title)}">${icon(bossDone ? "i-check" : "i-crown")}</button></div></div></div>
+          ${dialogNode}
         </div>
       </div>
     </section>`;
@@ -439,6 +446,12 @@ function renderCourse() {
     button.addEventListener("click", () => {
       if (button.dataset.locked === "true") showToast("Сначала пройди все уроки раздела");
       else startBoss(Number(button.dataset.bossUnit), button);
+    });
+  });
+  $$('[data-dialog-scenario]', container).forEach((button) => {
+    button.addEventListener("click", () => {
+      if (button.dataset.locked === "true") showToast("Пройди первый этап курса, чтобы открыть диалог");
+      else aiDialogs?.open("scenario", button.dataset.dialogScenario);
     });
   });
   preload([...new Set(COURSE_UNITS.flatMap((unit) => {
@@ -1411,6 +1424,7 @@ async function completeCurrentLesson() {
     State.completing = false;
     updateTopBar();
     renderLessonComplete(response, score);
+    aiDialogs?.refresh().catch(() => {});
   } catch (error) {
     State.completing = false;
     setBusy(action, false);
@@ -2790,6 +2804,7 @@ function logout(message = "") {
   State.moderation = [];
   closeLesson();
   closeBoss();
+  aiDialogs?.reset();
   showAuth(message);
   setAuthMode("login");
 }
@@ -3003,6 +3018,17 @@ function setupLessonViewport() {
 
 async function init() {
   setupLessonViewport();
+  aiDialogs = initAiDialogs({
+    showToast,
+    onPoints: (points) => {
+      if (!State.user || !Number.isFinite(Number(points))) return;
+      State.user.points = Number(points);
+      State.user.level = Math.floor(State.user.points / 100) + 1;
+      updateTopBar();
+    },
+    onScenariosUpdated: () => { if (State.user) renderCourse(); },
+    onGoHub: () => switchTab("dialogs"),
+  });
   bindEvents();
   initClouds();
   await loadSchoolDirectory();
