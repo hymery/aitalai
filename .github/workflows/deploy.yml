@@ -112,7 +112,7 @@ jobs:
             # PostgreSQL сохраняет пароль в data-томе: синхронизируем его с .env без потери данных.
             docker compose -f docker-compose.prod.yml exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "ALTER USER $POSTGRES_USER PASSWORD \$\$$POSTGRES_PASSWORD\$\$"
 
-            if ! docker compose -f docker-compose.prod.yml up -d --build --remove-orphans; then
+            if ! docker compose -f docker-compose.prod.yml up -d --build --remove-orphans --force-recreate; then
               docker compose -f docker-compose.prod.yml ps -a
               docker compose -f docker-compose.prod.yml logs --tail=200 backend db bot max-bot
               exit 1
