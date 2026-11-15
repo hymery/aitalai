@@ -1,0 +1,8 @@
+{
+  "name": "aitalai-hackathon-presentation",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node frontend/node_modules/vite/bin/vite.js --host 0.0.0.0"
+  }
+}

@@ -25,11 +25,15 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from dotenv import load_dotenv
 from jose import JWTError, jwt
 from sqlalchemy import and_, case, func, inspect, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.exceptions import HTTPException as StarletteHTTPException
+
+# Поддерживает backend/.env и при ручном запуске, не только в Docker.
+load_dotenv()
 
 from database import Base, engine, get_db
 from schools import find_school, get_school, search_schools
@@ -1961,3 +1965,253 @@ def save_bot_state(payload: BotStateCreate, db: Session = Depends(get_db)):
 )
 def service_status():
     return {"service": "Башкирская языковая школа", "status": "работает"}
+
+
+# ---------------------------------------------------------------------------
+# ИИ-диалоги: сценарии с персонажами и свободный чат с Устазом.
+# ---------------------------------------------------------------------------
+
+from ai_scenarios import SCENARIOS
+from ai_service import (
+    DeepSeekError,
+    TUTOR_GREETING,
+    ai_enabled,
+    daily_limit,
+    daily_messages_used,
+    generate_reply,
+    message_reply,
+    session_history,
+    system_prompt,
+    utc_day_start,
+)
+from models import AiMessage, AiSession
+from schemas import (
+    AiFinishResponse,
+    AiMessageCreate,
+    AiReply,
+    AiScenarioResponse,
+    AiSessionCreate,
+    AiSessionCreateResponse,
+    AiSessionHistoryResponse,
+    AiStatusResponse,
+)
+
+
+def require_ai_enabled():
+    if not ai_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="ИИ-диалоги пока не настроены. Попробуйте позже.",
+        )
+
+
+def owned_ai_session(db: Session, user: User, session_id: int) -> AiSession:
+    session = db.get(AiSession, session_id)
+    if session is None or session.user_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Диалог не найден."
+        )
+    return session
+
+
+def ai_message_payload(message: AiMessage) -> dict:
+    return {
+        "id": message.id,
+        "role": message.role,
+        "text": message.text,
+        "meta": message.meta or {},
+        "created_at": message.created_at,
+        "reply": message_reply(message) if message.role == "assistant" else None,
+    }
+
+
+@app.get("/ai/status", response_model=AiStatusResponse, tags=["ИИ-диалоги"])
+def ai_status(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    enabled = ai_enabled()
+    used = daily_messages_used(db, user.id) if enabled else 0
+    return {"enabled": enabled, "daily_left": max(0, daily_limit() - used) if enabled else 0}
+
+
+@app.get(
+    "/ai/scenarios",
+    response_model=list[AiScenarioResponse],
+    tags=["ИИ-диалоги"],
+)
+def list_ai_scenarios(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    require_ai_enabled()
+    units = {unit.id: unit for unit in course_units_query(db)}
+    progress = user_unit_progress_map(db, user.id)
+    sessions = (
+        db.query(AiSession)
+        .filter(AiSession.user_id == user.id, AiSession.mode == "scenario", AiSession.status == "finished")
+        .all()
+    )
+    result = []
+    for scenario_id, scenario in SCENARIOS.items():
+        unit_progress = progress.get(scenario["unit_id"])
+        scenario_sessions = [item for item in sessions if item.scenario_id == scenario_id]
+        result.append({
+            "id": scenario_id,
+            "title_ru": scenario["title_ru"],
+            "description_ru": scenario["description_ru"],
+            "character": scenario["character"],
+            "unit_id": scenario["unit_id"],
+            "unit_title": units.get(scenario["unit_id"]).title if units.get(scenario["unit_id"]) else scenario["title_ru"],
+            "unlocked": bool(unit_progress and unit_progress.circle_1_done),
+            "completed": bool(scenario_sessions),
+            "completed_today": any(item.finished_at and item.finished_at >= utc_day_start() for item in scenario_sessions),
+            "hint_chips": scenario["hint_chips"],
+        })
+    return result
+
+
+@app.post("/ai/sessions", response_model=AiSessionCreateResponse, tags=["ИИ-диалоги"])
+def create_ai_session(
+    payload: AiSessionCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    require_ai_enabled()
+    scenario = None
+    if payload.mode == "scenario":
+        scenario = SCENARIOS.get(payload.scenario_id or "")
+        if scenario is None:
+            raise HTTPException(status_code=400, detail="Выберите корректный сценарий.")
+        progress = (
+            db.query(UserUnitProgress)
+            .filter(
+                UserUnitProgress.user_id == user.id,
+                UserUnitProgress.unit_id == scenario["unit_id"],
+                UserUnitProgress.circle_1_done.is_(True),
+            )
+            .first()
+        )
+        if progress is None:
+            raise HTTPException(status_code=403, detail="Сначала пройдите первый этап этого курса.")
+    elif payload.scenario_id:
+        raise HTTPException(status_code=400, detail="Для режима Устаза сценарий не нужен.")
+
+    query = db.query(AiSession).filter(
+        AiSession.user_id == user.id,
+        AiSession.mode == payload.mode,
+        AiSession.status == "active",
+    )
+    if payload.mode == "scenario":
+        query = query.filter(AiSession.scenario_id == payload.scenario_id)
+    else:
+        query = query.filter(AiSession.scenario_id.is_(None))
+    session = query.order_by(AiSession.created_at.desc(), AiSession.id.desc()).first()
+    resumed = session is not None
+    if session is None:
+        session = AiSession(
+            user_id=user.id,
+            mode=payload.mode,
+            scenario_id=payload.scenario_id if payload.mode == "scenario" else None,
+            status="active",
+        )
+        db.add(session)
+        db.flush()
+        greeting = AiReply.model_validate(scenario["greeting"]) if scenario else TUTOR_GREETING.model_copy(deep=True)
+        db.add(AiMessage(
+            session_id=session.id,
+            role="assistant",
+            text=greeting.reply_ba,
+            meta=greeting.model_dump(mode="json"),
+        ))
+        db.commit()
+        db.refresh(session)
+    else:
+        greeting = AiReply.model_validate(scenario["greeting"]) if scenario else TUTOR_GREETING.model_copy(deep=True)
+    return {"session_id": session.id, "greeting": greeting, "resumed": resumed}
+
+
+@app.get("/ai/sessions/{session_id}", response_model=AiSessionHistoryResponse, tags=["ИИ-диалоги"])
+def get_ai_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    require_ai_enabled()
+    session = owned_ai_session(db, user, session_id)
+    messages = (
+        db.query(AiMessage)
+        .filter(AiMessage.session_id == session.id)
+        .order_by(AiMessage.id)
+        .all()
+    )
+    return {"session": session, "messages": [ai_message_payload(item) for item in messages]}
+
+
+@app.post("/ai/sessions/{session_id}/messages", response_model=AiReply, tags=["ИИ-диалоги"])
+async def send_ai_message(
+    session_id: int,
+    payload: AiMessageCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    require_ai_enabled()
+    session = owned_ai_session(db, user, session_id)
+    if session.status != "active":
+        raise HTTPException(status_code=409, detail="Этот диалог уже завершён.")
+    if daily_messages_used(db, user.id) >= daily_limit():
+        raise HTTPException(status_code=429, detail="На сегодня сообщения в диалогах закончились. Возвращайтесь завтра.")
+    user_message = AiMessage(session_id=session.id, role="user", text=payload.text, meta={})
+    db.add(user_message)
+    db.commit()
+    messages = [
+        {"role": "system", "content": system_prompt(db, user, session)},
+        *session_history(db, session.id),
+    ]
+    try:
+        reply = await generate_reply(messages)
+    except DeepSeekError:
+        logger.exception("DeepSeek недоступен для AI-сессии %s", session.id)
+        raise HTTPException(status_code=503, detail="Сервер временно недоступен") from None
+    assistant_message = AiMessage(
+        session_id=session.id,
+        role="assistant",
+        text=reply.reply_ba,
+        meta=reply.model_dump(mode="json"),
+    )
+    db.add(assistant_message)
+    db.commit()
+    return reply
+
+
+@app.post("/ai/sessions/{session_id}/finish", response_model=AiFinishResponse, tags=["ИИ-диалоги"])
+def finish_ai_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    require_ai_enabled()
+    session = owned_ai_session(db, user, session_id)
+    messages = db.query(AiMessage).filter(AiMessage.session_id == session.id).all()
+    user_count = sum(item.role == "user" for item in messages)
+    corrections_count = sum(len((item.meta or {}).get("corrections", [])) for item in messages if item.role == "assistant")
+    new_words = {
+        (word.get("ba", ""), word.get("ru", ""))
+        for item in messages if item.role == "assistant"
+        for word in (item.meta or {}).get("new_words", [])
+        if word.get("ba")
+    }
+    awarded = 0
+    if user_count >= 3 and session.points_awarded == 0:
+        awarded = 30
+        session.points_awarded = 30
+        user.points += 30
+        user.level = user.points // 100 + 1
+        award_badges(db, user)
+    if session.status != "finished":
+        session.status = "finished"
+        session.finished_at = datetime.now(timezone.utc)
+    db.commit()
+    return {
+        "points": awarded,
+        "total_points": user.points,
+        "report": {
+            "messages_count": user_count,
+            "corrections_count": corrections_count,
+            "new_words": len(new_words),
+        },
+    }

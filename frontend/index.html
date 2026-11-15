@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
+  <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#1176C8">
   <meta name="description" content="Интерактивная школа башкирского языка: карточки, игровые уроки, народные переводы и рейтинги.">
@@ -114,6 +115,11 @@
     <main class="duo-content">
       <section id="screen-course" class="screen"><div id="course-content" class="path-container"></div></section>
 
+      <section id="screen-dialogs" class="screen" hidden>
+        <div class="screen-heading"><h2>Диалоги</h2><p>Говори по-башкирски с героями — они поправят и подскажут</p></div>
+        <div id="dialogs-hub" class="dialogs-hub" aria-live="polite"></div>
+      </section>
+
       <section id="screen-community" class="screen" hidden>
         <div class="community-panel">
           <div class="community-head"><div class="screen-heading"><h2>Китапхана переводов</h2></div></div>
@@ -171,6 +177,7 @@
     <nav class="duo-bottom-nav" aria-label="Основная навигация">
       <div class="desktop-brand"><svg aria-hidden="true"><use href="#kurai"></use></svg><div><strong lang="ba">Әйтәләй</strong><span>Башкирская языковая школа</span></div></div>
       <a class="duo-nav-tab is-active" href="#course" data-tab="course"><svg class="icon" aria-hidden="true"><use href="#i-home"></use></svg><span>Курс</span></a>
+      <a class="duo-nav-tab" href="#dialogs" data-tab="dialogs"><svg class="icon" aria-hidden="true"><use href="#i-spark"></use></svg><span>Диалоги</span></a>
       <a class="duo-nav-tab" href="#community" data-tab="community"><svg class="icon" aria-hidden="true"><use href="#i-book"></use></svg><span>Сообщество</span></a>
       <a class="duo-nav-tab" href="#ratings" data-tab="ratings"><svg class="icon" aria-hidden="true"><use href="#i-cup"></use></svg><span>Рейтинг</span></a>
       <a class="duo-nav-tab" href="#cabinet" data-tab="cabinet" id="cabinet-nav"><svg class="icon" aria-hidden="true"><use href="#i-profile"></use></svg><span>Кабинет</span></a>
@@ -208,6 +215,35 @@
     </div>
     <div class="duo-modal__body lesson__body"><div id="boss-scene" class="lesson-scene"></div><h2 id="boss-modal-title" class="lesson__title"></h2><div id="boss-step-container" class="lesson__task"></div></div>
     <div class="duo-modal__footer lesson__foot" id="boss-footer"><div id="boss-feedback-box" class="feedback-sheet__inner" hidden></div><button class="btn btn-primary btn-lg btn-block" type="button" id="boss-action-btn">Проверить ответ</button></div>
+  </div>
+
+  <div id="modal-dialog" class="duo-modal ai-chat" role="dialog" aria-modal="true" aria-labelledby="dialog-modal-title" hidden>
+    <div class="duo-modal__header ai-chat__header">
+      <button class="btn btn-ghost btn-icon" type="button" id="dialog-close" aria-label="Закрыть диалог"><svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg></button>
+      <div id="dialog-character-stage" class="ai-chat__mini-stage" data-character-stage>
+        <div class="character" data-char="boy" data-state="idle" aria-hidden="true"><img id="dialog-character" class="character__img" src="characters/boy_thinking.webp" width="48" height="48" alt=""></div>
+      </div>
+      <div class="ai-chat__heading"><strong id="dialog-character-name">Устаз</strong><span id="dialog-modal-title">Вопрос учителю</span></div>
+      <button class="btn btn-ghost ai-chat__finish" type="button" id="dialog-finish">Завершить</button>
+    </div>
+    <div class="ai-chat__log" id="dialog-log" role="log" aria-live="polite" aria-label="Сообщения диалога" tabindex="0"></div>
+    <div class="ai-chat__composer" id="dialog-composer">
+      <div class="ai-chat__hints" id="dialog-hints" aria-label="Подсказки для ответа"></div>
+      <form class="ai-chat__form" id="dialog-form">
+        <label class="sr-only" for="dialog-input">Сообщение на башкирском или русском</label>
+        <input class="input" id="dialog-input" data-bashkir-input type="text" maxlength="300" autocomplete="off" placeholder="Напиши сообщение…">
+        <button class="btn btn-primary btn-icon ai-chat__send" id="dialog-send" type="submit" aria-label="Отправить сообщение" disabled><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="m4 12 16-8-5 16-3-6-8-2Z" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linejoin="round"/><path d="m12 14 8-10" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/></svg></button>
+      </form>
+    </div>
+    <div class="ai-results" id="dialog-results" hidden></div>
+  </div>
+
+  <div id="dialog-action-sheet" class="sheet-backdrop" hidden>
+    <div class="bottom-sheet" role="alertdialog" aria-modal="true" aria-labelledby="dialog-action-title">
+      <h2 id="dialog-action-title">Выйти из диалога?</h2><p id="dialog-action-text">Сообщения сохранятся, можно будет продолжить позже.</p>
+      <button class="btn btn-success btn-lg btn-block" id="dialog-stay" type="button">Продолжить диалог</button>
+      <button class="btn btn-ghost btn-block" id="dialog-action-confirm" type="button">Выйти</button>
+    </div>
   </div>
 
   <div id="lesson-exit-sheet" class="sheet-backdrop" hidden>

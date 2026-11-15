@@ -17,6 +17,7 @@
 - Ежедневная проверка переводов: +10 очков за подтверждение, +15 за исправление. Предложение новой пары: +20 очков; дубликаты и простой спам отклоняются.
 - 4 категории рейтинга — «Ученики», «Классы», «Школы» и «Моя школа» — с 3 периодами. Профиль, отчёт учителя и модерация. Собственные ответы экспортируют все авторизованные пользователи, подтверждённый корпус — только учителя и эксперты.
 - Регистрация и вход проходят в Mini App. Telegram-бот открывает приложение, восстанавливает привязанную сессию и поддерживает `/task`, `/progress`, `/notifications`, ежедневные напоминания и уведомления о серии, рейтинге и подтверждении переводов. MAX-бот открывает WebApp и присылает ежедневные напоминания подписчикам.
+- ИИ-собеседник DeepSeek: три сюжетных диалога с героями курса и режим «Устаз», исправления, перевод, новые слова, подсказки, сохранение истории и +30 очков за первое завершение сценария.
 
 ## Требования
 
@@ -126,6 +127,23 @@ python max_bot.py
 | Учитель | `teacher@example.com` | отчёт по школе и классу |
 | Администратор | `admin@example.com` | отчёты, модерация, экспорт |
 
+## ИИ-собеседник
+
+Вкладка «Диалоги» открывает сюжетные разговоры с Өләсәй, Азаматом и Аҡбуҙатом, а также свободные вопросы режиму «Устаз». Первый сценарий доступен сразу, остальные открываются после первого этапа курса. Backend ограничивает контекст словарём пройденных этапов, хранит историю, применяет дневной лимит и начисляет +30 очков только за первое завершение сценария.
+
+Для включения заполните `backend/.env` и перезапустите backend:
+
+```dotenv
+AI_ENABLED=1
+DEEPSEEK_API_KEY=sk-replace-me
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_MODEL=deepseek-chat
+AI_DAILY_MESSAGE_LIMIT=60
+AI_MAX_HISTORY=12
+```
+
+`DEEPSEEK_BASE_URL` задаётся без `/chat/completions`: backend добавляет этот путь сам. Для OpenAI-совместимого MiniRouter используйте `DEEPSEEK_BASE_URL=https://api.minirouter.sh/v1` и полный идентификатор выбранной модели в `DEEPSEEK_MODEL`. Ключ хранится только в `backend/.env`, который исключён из Git. Без `AI_ENABLED=1` или ключа остальные разделы работают как обычно, а вкладка «Диалоги» показывает экран «скоро».
+
 ## Telegram и MAX на телефоне
 
 Telegram требует публичный HTTPS-адрес Mini App. Поднимите HTTPS-туннель к frontend и укажите его в `bot/.env` как `WEBAPP_URL=https://...`, затем перезапустите бота. API тоже должен быть доступен по HTTPS: используйте `VITE_API_URL=/api` с reverse proxy на том же домене либо публичный HTTPS-адрес API, иначе возникнут ошибки `localhost` или mixed content. Для production разместите собранный `frontend/dist` на HTTPS-хостинге и настройте API.
@@ -153,6 +171,9 @@ MAX-бот использует официальный `platform-api2.max.ru`, �
 | `GET /courses/units` | три курса, прогресс и доступность этапов |
 | `GET /courses/units/{unit_id}` | карточки, квиз, упражнения и шаги истории |
 | `POST /courses/units/{unit_id}/complete` | завершение `circle` со `score`, очки и разблокировка |
+| `GET /ai/status`, `GET /ai/scenarios` | доступность ИИ, лимит и сценарии |
+| `POST /ai/sessions`, `GET /ai/sessions/{id}` | создание сессии и восстановление истории |
+| `POST /ai/sessions/{id}/messages`, `POST /ai/sessions/{id}/finish` | ответ DeepSeek и завершение сценария |
 | `GET /fragments/search?q=...&limit=20&lang_pair=ba-ru` | живой поиск по общему словарю |
 | `POST /fragments/propose` | новая пара `text_ba` + `translation`, +20 очков |
 | `GET /tasks/daily`, `POST /tasks/submit` | народная проверка переводов |
@@ -169,7 +190,7 @@ MAX-бот использует официальный `platform-api2.max.ru`, �
 
 | Компонент | Переменные |
 |---|---|
-| backend | `DATABASE_URL`, `SECRET_KEY`, `JWT_ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES`, `TELEGRAM_BOT_TOKEN`, `MAX_BOT_TOKEN`, `PLATFORM_AUTH_TTL_SECONDS`, `PLATFORM_AUTH_DEV_BYPASS`, `TTS_ENABLED`, `TTS_MODEL_PATH`, `TTS_CACHE_DIR`, необязательный `HF_TOKEN` |
+| backend | `DATABASE_URL`, `SECRET_KEY`, `JWT_ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES`, `TELEGRAM_BOT_TOKEN`, `MAX_BOT_TOKEN`, `PLATFORM_AUTH_TTL_SECONDS`, `PLATFORM_AUTH_DEV_BYPASS`, `AI_ENABLED`, `DEEPSEEK_API_KEY`, `DEEPSEEK_BASE_URL`, `DEEPSEEK_MODEL`, `AI_DAILY_MESSAGE_LIMIT`, `AI_MAX_HISTORY`, `TTS_ENABLED`, `TTS_MODEL_PATH`, `TTS_CACHE_DIR`, необязательный `HF_TOKEN` |
 | frontend | `VITE_API_URL` — публичный URL API для браузера, задаётся до сборки |
 | bot | `TELEGRAM_BOT_TOKEN` (или `BOT_TOKEN`), `MAX_BOT_TOKEN`, `API_URL`, `USE_MOCK`, `WEBAPP_URL`, `MAX_WEBAPP_URL`, `WEBAPP_DIR`, `TELEGRAM_PROXY`, `REMINDER_*`, `USERS_FILE`, `MAX_USERS_FILE` |
 
@@ -190,8 +211,7 @@ TTS использует Silero `v5_cis_base_nostress`, голос `bak_alfia`, 
 ```powershell
 python -m compileall -q backend bot
 cd backend
-.\.venv\Scripts\python.exe -m unittest -v test_courses.py
-.\.venv\Scripts\python.exe -m unittest -v test_platform_auth.py
+.\.venv\Scripts\python.exe -m unittest -v test_ai.py test_courses.py test_platform_auth.py
 cd ..\bot
 .\.venv\Scripts\python.exe -m unittest -v test_bots.py
 cd ..\frontend

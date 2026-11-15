@@ -106,8 +106,9 @@ class MaxBotTest(unittest.IsolatedAsyncioTestCase):
 
             self.assertEqual(post.await_count, 2)
             fallback_buttons = post.await_args_list[1].args[1]["attachments"][0]["payload"]["buttons"]
+            self.assertEqual(len(fallback_buttons), 1)
             self.assertEqual(fallback_buttons[0][0]["type"], "link")
-            self.assertEqual(fallback_buttons[1][0]["url"], "https://example.com")
+            self.assertEqual(fallback_buttons[0][0]["url"], "https://example.com")
             await bot.close()
 
     async def test_configure_updates_commands(self) -> None:

@@ -382,3 +382,94 @@ class CourseCircleCompleteResponse(BaseModel):
     next_unit_id: int | None
     next_unit_unlocked: bool
     progress: UnitProgressStatus
+
+
+class AiCorrection(BaseModel):
+    wrong: str
+    correct: str
+    explanation_ru: str
+
+
+class AiWordPair(BaseModel):
+    ba: str
+    ru: str
+
+
+class AiReply(BaseModel):
+    reply_ba: str
+    reply_ru: str
+    emotion: Literal["idle", "success", "fail", "special", "thinking"] = "idle"
+    corrections: list[AiCorrection] = Field(default_factory=list)
+    new_words: list[AiWordPair] = Field(default_factory=list)
+    hint: str | None = None
+
+
+class AiStatusResponse(BaseModel):
+    enabled: bool
+    daily_left: int
+
+
+class AiScenarioResponse(BaseModel):
+    id: str
+    title_ru: str
+    description_ru: str
+    character: str
+    unit_id: int
+    unit_title: str
+    unlocked: bool
+    completed: bool
+    completed_today: bool
+    hint_chips: list[str]
+
+
+class AiSessionCreate(BaseModel):
+    mode: Literal["scenario", "tutor"]
+    scenario_id: str | None = None
+
+
+class AiSessionCreateResponse(BaseModel):
+    session_id: int
+    greeting: AiReply
+    resumed: bool = False
+
+
+class AiMessageCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    text: str = Field(min_length=1, max_length=300)
+
+
+class AiMessageResponse(ORMModel):
+    id: int
+    role: Literal["user", "assistant"]
+    text: str
+    meta: dict = Field(default_factory=dict)
+    created_at: datetime
+    reply: AiReply | None = None
+
+
+class AiSessionResponse(ORMModel):
+    id: int
+    mode: Literal["scenario", "tutor"]
+    scenario_id: str | None
+    status: Literal["active", "finished"]
+    points_awarded: int
+    created_at: datetime
+    finished_at: datetime | None
+
+
+class AiSessionHistoryResponse(BaseModel):
+    session: AiSessionResponse
+    messages: list[AiMessageResponse]
+
+
+class AiFinishReport(BaseModel):
+    messages_count: int
+    corrections_count: int
+    new_words: int
+
+
+class AiFinishResponse(BaseModel):
+    points: int
+    total_points: int
+    report: AiFinishReport
