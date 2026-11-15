@@ -135,7 +135,8 @@ jobs:
         run: |
           set -euo pipefail
           curl -fsS --retry 6 --retry-all-errors --retry-delay 10 https://kruzhok-studio.online/api/health
-          curl -fsS --retry 6 --retry-all-errors --retry-delay 10 https://kruzhok-studio.online/ | grep -qi '<!doctype html'
+          curl -fsS --retry 6 --retry-all-errors --retry-delay 10 https://kruzhok-studio.online/ -o /tmp/aitalai-index.html
+          grep -qi '<!doctype html' /tmp/aitalai-index.html
 
           export SSHPASS="$VPS_PASSWORD"
           SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -o ServerAliveInterval=30"
