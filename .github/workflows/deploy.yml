@@ -104,13 +104,13 @@ jobs:
             . ./.env
             set +a
             for attempt in $(seq 1 30); do
-              if docker compose -f docker-compose.prod.yml exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c 'SELECT 1' >/dev/null 2>&1; then
+              if docker compose -f docker-compose.prod.yml exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 1" >/dev/null 2>&1; then
                 break
               fi
               sleep 2
             done
             # PostgreSQL сохраняет пароль в data-томе: синхронизируем его с .env без потери данных.
-            printf "ALTER USER %s PASSWORD :'pwd'\n" "$POSTGRES_USER" | docker compose -f docker-compose.prod.yml exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v pwd="$POSTGRES_PASSWORD"
+            docker compose -f docker-compose.prod.yml exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "ALTER USER $POSTGRES_USER PASSWORD \$\$$POSTGRES_PASSWORD\$\$"
 
             if ! docker compose -f docker-compose.prod.yml up -d --build --remove-orphans; then
               docker compose -f docker-compose.prod.yml ps -a
