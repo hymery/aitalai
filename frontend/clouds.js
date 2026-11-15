@@ -26,6 +26,9 @@ function cloudAnchor(cloud) {
 export function fitCloud(cloud) {
   if (!(cloud instanceof HTMLElement) || !cloud.isConnected || cloud.closest("[hidden]")) return;
   cloud.classList.add("cloud");
+  const isSolo = cloud.classList.contains("cloud--solo");
+  const inV8Chat = Boolean(cloud.closest(".dialog__chat"));
+  const maxLines = isSolo ? 4 : 3;
   if (!cloud.dataset.cloudBase) cloud.dataset.cloudBase = String(parseFloat(getComputedStyle(cloud).fontSize) || 20);
   const base = Number(cloud.dataset.cloudBase);
   const sizes = base <= 14 ? [14] : [22, 20, 18, 16].filter((size) => size <= base);
@@ -33,9 +36,12 @@ export function fitCloud(cloud) {
   cloud.classList.remove("cloud--wide");
   for (const size of sizes) {
     cloud.style.setProperty("--cloud-font-size", `${size}px`);
-    if (cloudLineCount(cloud) <= 3) break;
+    if (cloudLineCount(cloud) <= maxLines) break;
   }
-  if (cloudLineCount(cloud) > 3) cloud.classList.add("cloud--wide");
+  if (cloudLineCount(cloud) > maxLines) cloud.classList.add("cloud--wide");
+
+  // Solo-облака и пузыри диалога v8 позиционирует сцена (--cloud-top/--tail-y/--tail-x)
+  if (isSolo || inV8Chat) return;
 
   const previousShift = Number(cloud.dataset.cloudShift || 0);
   const rect = cloud.getBoundingClientRect();

@@ -1611,9 +1611,12 @@
       <a href="#community">Книги</a>
       <a href="#rating-profile">Пьедестал</a>
       <a href="#cabinet-v7">Кабинет</a>
+      <a href="#stage-v8">Сцена v8</a>
+      <a href="#dialog-v8">Диалог v8</a>
+      <a href="#result-v8">Результат</a>
       <a href="#adaptive">Адаптив</a>
     </nav>
-    <span class="sg-version">v7.0</span>
+    <span class="sg-version">v8.0</span>
   </div>
 </header>
 <div class="ornament-strip" aria-hidden="true"></div>
@@ -2796,6 +2799,91 @@
         </div>
       </div>
       <p class="note" style="margin-top: var(--s3)">Семь персонажей и шесть цветов редактируются как черновик. Закрытые герои объясняют условие открытия; «Сохранить» применяет выбор целиком, закрытие листа его отменяет.</p>
+    </div>
+  </section>
+  <section class="sg-section" id="stage-v8">
+    <header class="sg-section__head">
+      <span class="sg-num">21</span>
+      <div>
+        <h2>Сцена урока v8: solo и duo</h2>
+        <p>Единая сцена для всех шагов урока и квеста. Герой показан по пояс: квадратный спрайт увеличен (--zoom) и обрезан окном (--crop), голова не срезается. Облако стоит у рта, хвост совпадает с губами на каждой строке; максимум четыре строки без многоточия.</p>
+      </div>
+    </header>
+    <div class="sg-section__body">
+      <h3 class="sg-subhead">Solo: герой слева, облако справа</h3>
+      <div class="sg-stage">
+        <div class="lesson-scene" style="max-width: 360px; margin-inline: auto">
+          <div class="stage stage--v8 stage--solo stage--accent-blue" data-stage data-emotion="idle">
+            <div class="char character char--left" style="--zoom:1.28;--crop:0.78" data-char="boy" data-emotion="idle" aria-hidden="true"><img class="char__img character__img" src="characters/boy_idle.webp" alt="" draggable="false"></div>
+            <div class="cloud cloud--solo" data-solo-cloud style="--cloud-top:24px;--tail-y:64px"><span class="speech__text" lang="ba">Һәйлә емеше сырхауға яҡшы.</span><span class="cloud__hint"><svg class="icon icon-sm" aria-hidden="true"><use href="#i-book"></use></svg>Перевод слова: яблоко</span></div>
+            <svg class="stage__floor" viewBox="0 0 360 32" preserveAspectRatio="none" aria-hidden="true"><path d="M0 16C45 6 90 26 135 16S225 6 270 16 360 26 360 16V32H0Z"/></svg>
+          </div>
+        </div>
+      </div>
+      <p class="note" style="margin-top: var(--s3)">Положение облака (--cloud-top, --tail-y) в продукте считает скрипт от точки рта персонажа; здесь значения заданы вручную. Подсказка-перевод — отдельной строкой 14 px.</p>
+
+      <h3 class="sg-subhead">Duo: игрок и собеседник, плашка темы</h3>
+      <div class="sg-stage">
+        <div class="lesson-scene" style="max-width: 360px; margin-inline: auto">
+          <div class="stage stage--v8 stage--duo stage--accent-green" data-stage data-emotion="idle">
+            <span class="stage__chip">Өйҙә</span>
+            <div class="char character char--left" style="--zoom:1.28;--crop:0.78" data-char="boy" data-dialog-side="player" data-emotion="idle" aria-hidden="true"><img class="char__img character__img" src="characters/boy_idle.webp" alt="" draggable="false"></div>
+            <div class="char character char--right" style="--zoom:1.32;--crop:0.78" data-char="granny" data-dialog-side="npc" data-emotion="idle" aria-hidden="true"><img class="char__img character__img" src="characters/granny_idle.webp" alt="" draggable="false"></div>
+            <svg class="stage__floor" viewBox="0 0 360 32" preserveAspectRatio="none" aria-hidden="true"><path d="M0 16C45 6 90 26 135 16S225 6 270 16 360 26 360 16V32H0Z"/></svg>
+          </div>
+        </div>
+      </div>
+      <p class="note" style="margin-top: var(--s3)">Правый герой зеркален и заходит с задержкой 120 мс. Плашка темы падает сверху; фон и «пол» берут акцент раздела (blue, green, gold).</p>
+    </div>
+  </section>
+
+  <section class="sg-section" id="dialog-v8">
+    <header class="sg-section__head">
+      <span class="sg-num">22</span>
+      <div>
+        <h2>Облако в диалоге</h2>
+        <p>Реплики живут в чате под duo-сценой: собеседник слева, игрок справа. Хвост пузыря смотрит вверх, на рот говорящего (--tail-x считает скрипт). Выбранный ответ улетает в чат и через 450 мс получает рамку ✓ или ✕.</p>
+      </div>
+    </header>
+    <div class="sg-section__body">
+      <div class="sg-stage">
+        <div class="dialog__chat" style="max-width: 360px; max-height: 260px; margin-inline: auto; border: 2px solid var(--line); border-radius: var(--r-card)">
+          <div class="dialog__list" style="position: static; padding: var(--s3) var(--s1)">
+            <div class="cloud chat-bubble chat-bubble--npc" data-side="npc" lang="ba" style="--tail-x:36px"><div class="chat-bubble__line"><span class="chat-bubble__content">Һәү, нисек бара?</span></div><span class="chat-bubble__translation">Ну, как дела?</span></div>
+            <div class="cloud chat-bubble chat-bubble--player is-correct" data-side="player" lang="ba" style="--tail-x:96px"><div class="chat-bubble__line"><span class="chat-bubble__content">Айбулат, миндә барыһы ла яҡшы!</span></div></div>
+            <div class="chat-bubble chat-bubble--npc chat-typing" data-typing aria-label="Персонаж печатает"><i></i><i></i><i></i></div>
+          </div>
+        </div>
+      </div>
+      <p class="note" style="margin-top: var(--s3)">Список прижат к низу и уходит вверх по мере реплик, без полосы прокрутки. Перевод открывается кнопкой «Перевод»; у реплик собеседника есть озвучка. Варианты ответа появляются каскадом по 60 мс.</p>
+    </div>
+  </section>
+
+  <section class="sg-section" id="result-v8">
+    <header class="sg-section__head">
+      <span class="sg-num">23</span>
+      <div>
+        <h2>Карточка результата</h2>
+        <p>Финал урока и награда квеста — одна карточка: герой выглядывает сверху, заголовок «Афарин!», числа поднимаются счётчиком. Футер скрыт, кнопка «Продолжить» внутри карточки.</p>
+      </div>
+    </header>
+    <div class="sg-section__body">
+      <div class="sg-stage">
+        <div class="result-screen" style="max-width: 360px; margin-inline: auto; margin-bottom: 0">
+          <div class="result">
+            <div class="result__hero"><div class="char character char--left" style="--zoom:1.28;--crop:0.78" data-char="boy" data-emotion="combo" aria-hidden="true"><img class="char__img character__img" src="characters/boy_combo.webp" alt="" draggable="false"></div></div>
+            <strong class="result__title" lang="ba">Афарин!</strong>
+            <span class="result__subtitle">Урок пройден</span>
+            <div class="result__stats">
+              <div class="result-stat"><strong><svg class="icon" aria-hidden="true"><use href="#i-honey"></use></svg><span>+15</span></strong><span>очки</span></div>
+              <div class="result-stat"><strong><span>100</span>%</strong><span>точность</span></div>
+              <div class="result-stat"><strong>1:24</strong><span>время</span></div>
+            </div>
+            <button class="btn btn-success btn-lg btn-block" type="button">Продолжить</button>
+          </div>
+        </div>
+      </div>
+      <p class="note" style="margin-top: var(--s3)">У квеста вместо статистики — факт о Башкортостане на золотой подложке и чип новой награды; чип открывает лист награды из кабинета.</p>
     </div>
   </section>
 </main>

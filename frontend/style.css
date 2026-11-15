@@ -6814,3 +6814,322 @@ span.avatar__portrait { width: 100%; height: 100%; margin: 0; transform: none; }
   .book__inside { transform: none; }
   .book__spine { left: 0; transform: none; }
 }
+
+/* ==========================================================================
+   32. V8: УРОКИ
+   Единая сцена (герои по пояс, без срезов головы), облако от рта персонажа,
+   диалоги с пузырями, экран результата. Поверх v2–v7: только новые классы
+   и переопределения внутри #modal-lesson / #modal-boss.
+   ========================================================================== */
+
+/* Каркас: сцена сверху, рабочая зона тянется, футер липкий */
+#modal-lesson .lesson__body,
+#modal-boss .lesson__body { display: flex; flex-direction: column; overflow: auto; }
+#modal-boss .lesson__body,
+#modal-lesson.lesson--dialog .lesson__body { overflow: hidden; }
+#modal-lesson .lesson__task,
+#modal-boss .lesson__task { flex: 1 1 auto; min-height: 0; }
+#modal-lesson.lesson--dialog .lesson__task { overflow: hidden; }
+#modal-lesson .lesson-scene,
+#modal-boss .lesson-scene { flex: none; z-index: 2; }
+#modal-lesson .lesson-scene:has(.stage--v8),
+#modal-boss .lesson-scene:has(.stage--v8) { overflow: hidden; background: none; }
+#modal-lesson.lesson--dialog .lesson-scene,
+#modal-boss .lesson-scene { margin-bottom: calc(var(--s2) * -1); border-radius: 0; }
+#lesson-scene:empty,
+#boss-scene:empty { display: none; }
+.lesson__foot.is-hidden { display: none; }
+
+/* Сцена */
+.lesson-scene .stage--v8 {
+  --cw: min(58vw, 236px);
+  --stage-h: clamp(232px, 32dvh, 300px);
+  display: block;
+  height: var(--stage-h);
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  background: var(--stage-bg, var(--blue-50));
+}
+.lesson-scene .stage--duo { --cw: min(52vw, 204px); }
+.lesson-scene .stage--compact { --cw: min(50vw, 180px); --stage-h: clamp(190px, 26dvh, 230px); }
+@media (max-height: 640px) {
+  .lesson-scene .stage--v8 { --stage-h: 200px; }
+  .lesson-scene .stage--compact { --stage-h: 176px; }
+}
+.stage--accent-blue { --stage-bg: var(--blue-50); --floor: color-mix(in srgb, var(--blue-500) 16%, var(--white)); }
+.stage--accent-green { --stage-bg: var(--green-50); --floor: color-mix(in srgb, var(--green-500) 16%, var(--white)); }
+.stage--accent-gold { --stage-bg: var(--gold-50); --floor: color-mix(in srgb, var(--gold-500) 24%, var(--white)); }
+.stage--v8 .stage__floor { position: absolute; right: 0; bottom: 0; left: 0; z-index: 3; width: 100%; height: var(--s5); }
+.stage--v8 .stage__floor path { fill: var(--floor, var(--line)); }
+.stage--v8 .stage__chip {
+  position: absolute;
+  top: var(--s3);
+  left: 50%;
+  z-index: 4;
+  max-width: 80%;
+  padding: var(--s1) var(--s3);
+  overflow: hidden;
+  border: 2px solid var(--line);
+  border-radius: var(--r-chip);
+  background: var(--white);
+  box-shadow: 0 2px 0 var(--line);
+  color: var(--ink-900);
+  font: 800 14px/1.4 var(--font);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+/* Герой: окно по пояс, спрайт увеличен, голова не срезана */
+.lesson-scene .stage--v8 .char {
+  position: absolute;
+  bottom: 0;
+  z-index: 2;
+  width: var(--cw);
+  height: calc(var(--cw) * var(--crop, 0.78));
+  overflow: hidden;
+  transition: transform 200ms ease;
+}
+.stage--v8 .char--left { left: -4vw; }
+.stage--v8 .char--right { right: -4vw; }
+.stage--v8 .char__img {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: calc(var(--cw) * var(--zoom, 1));
+  max-width: none;
+  transform: translateX(-50%);
+}
+.stage--v8 .char--right .char__img { transform: translateX(-50%) scaleX(-1); }
+.stage--v8 .char.is-listening { transform: translateY(4px); }
+.stage--v8 .char.is-talking { animation: char-talk8 400ms ease-in-out; }
+.stage--v8 .char.is-wrong { animation: char-shake8 300ms; }
+.stage--enter .char--left { animation: char-in-left8 500ms cubic-bezier(.34, 1.56, .64, 1) both; }
+.stage--enter .char--right { animation: char-in-right8 500ms 120ms cubic-bezier(.34, 1.56, .64, 1) both; }
+.stage--enter .stage__chip { animation: chip-drop8 300ms 200ms both; }
+@keyframes char-in-left8 { from { transform: translateX(-60%); opacity: 0; } }
+@keyframes char-in-right8 { from { transform: translateX(60%); opacity: 0; } }
+@keyframes chip-drop8 { from { transform: translate(-50%, -16px); opacity: 0; } }
+@keyframes char-talk8 {
+  0%, 50%, 100% { transform: translateY(0) scaleY(1); }
+  25%, 75% { transform: translateY(-4px) scaleY(1.03); }
+}
+@keyframes char-shake8 { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
+@keyframes blank-pop8 { 50% { transform: scale(1.15); } }
+
+/* Облако у рта персонажа (solo) */
+.stage--v8 .cloud--solo {
+  position: absolute;
+  top: var(--cloud-top, var(--s3));
+  right: var(--s3);
+  left: calc(var(--cw) - 4vw - var(--s3));
+  z-index: 5;
+  max-width: none;
+  margin: 0;
+  font-size: var(--cloud-font-size, 22px);
+  font-weight: 800;
+  line-height: 1.3;
+  transform-origin: 0 var(--tail-y, 24px);
+  animation: cloud-solo-in8 300ms cubic-bezier(.34, 1.56, .64, 1) both;
+}
+.stage--v8 .cloud--solo::after {
+  top: calc(var(--tail-y, 24px) - 8px);
+  bottom: auto;
+  left: -10px;
+}
+.stage--v8 .cloud--solo.cloud--wide { right: var(--s2); left: calc(var(--cw) - 4vw - var(--s4)); }
+@keyframes cloud-solo-in8 { from { transform: scale(.6); opacity: 0; } }
+.cloud__hint { display: flex; align-items: center; gap: var(--s2); margin-top: var(--s2); color: var(--ink-600); font-size: 14px; font-weight: 700; }
+.cloud__audio { float: left; width: 40px; height: 40px; margin: 0 var(--s2) 0 0; padding: 0; flex-basis: 40px; }
+
+/* Пропуск в предложении */
+.blank {
+  display: inline-block;
+  min-width: 64px;
+  padding: 0 var(--s1);
+  border-bottom: 4px solid var(--line-strong);
+  color: var(--ink-500);
+  text-align: center;
+}
+.blank.is-filled { border-bottom-color: var(--blue-500); color: var(--blue-600); animation: blank-pop8 200ms; }
+
+/* Диалог: пузыри над чатом, хвост сверху от рта говорящего */
+.dialog__chat {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 96px;
+  overflow: hidden;
+  scrollbar-width: none;
+}
+.dialog__chat::-webkit-scrollbar { display: none; }
+.dialog__list {
+  position: absolute;
+  top: 0;
+  right: var(--s1);
+  left: var(--s1);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding-bottom: var(--s2);
+  transition: transform 300ms ease;
+}
+.dialog__list.is-instant { transition: none; }
+.dialog__instruction { margin: var(--s2) 0 0; color: var(--ink-900); font-size: 18px; font-weight: 800; text-align: center; }
+.dialog__choices .choice { animation: choice-in8 300ms both; animation-delay: calc(var(--i, 0) * 60ms); }
+.dialog__choices.is-resolved .choice:not(.is-selected) { animation: choice-out8 260ms both; }
+.dialog__choices.is-gone { display: none; }
+@keyframes choice-in8 { from { transform: translateY(12px); opacity: 0; } }
+@keyframes choice-out8 { to { transform: translateY(24px); opacity: 0; } }
+
+.dialog__chat .chat-bubble { max-width: 80%; margin: 0; font-size: var(--cloud-font-size, 20px); animation: none; }
+.dialog__chat .chat-bubble--npc { align-self: flex-start; }
+.dialog__chat .chat-bubble--player { align-self: flex-end; border-color: var(--blue-500); background: var(--blue-50); box-shadow: 0 var(--edge-depth, 4px) 0 color-mix(in srgb, var(--blue-500) 30%, var(--white)); }
+.dialog__chat .chat-bubble::after {
+  top: -9px;
+  bottom: auto;
+  left: calc(var(--tail-x, 32px) - 8px);
+  border: 0;
+  border-top: 2px solid var(--line);
+  border-left: 2px solid var(--line);
+  background: inherit;
+  transform: rotate(45deg);
+}
+.dialog__chat .chat-bubble--player::after { border-color: var(--blue-500); }
+.chat-bubble__line { display: flex; align-items: center; gap: var(--s2); }
+.chat-bubble__tts { flex: 0 0 40px; width: 40px; height: 40px; padding: 0; }
+.chat-bubble__caption { display: block; margin-top: var(--s1); color: var(--ink-600); font-size: 14px; font-weight: 700; }
+.chat-bubble.is-correct::before,
+.chat-bubble.is-wrong::before {
+  content: "✓";
+  position: absolute;
+  top: -12px;
+  right: -8px;
+  z-index: 2;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 2px solid var(--white);
+  border-radius: 50%;
+  background: var(--green-500);
+  color: var(--white);
+  font: 900 14px/1 var(--font);
+}
+.chat-bubble.is-wrong::before { content: "✕"; background: var(--red-500); }
+.chat-bubble.is-wrong { animation: char-shake8 300ms; }
+.chat-typing { display: inline-flex; align-self: flex-start; gap: var(--s1); align-items: center; }
+.chat-typing i { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-500); animation: typing-dot8 1s infinite; }
+.chat-typing i:nth-child(2) { animation-delay: .15s; }
+.chat-typing i:nth-child(3) { animation-delay: .3s; }
+@keyframes typing-dot8 { 0%, 60%, 100% { transform: none; opacity: .4; } 30% { transform: translateY(-4px); opacity: 1; } }
+
+/* Карточки слов */
+#modal-lesson .flip { flex: 1 1 auto; height: auto; min-height: 220px; }
+.flip__word { font-size: 40px; font-weight: 800; }
+.flashcard-example strong { font-size: 18px; font-weight: 700; }
+.flashcard-example p { font-size: 16px; font-weight: 600; color: var(--ink-500); }
+.flip--enter-right { animation: flip-enter-right8 300ms ease-out; }
+.flip--enter-left { animation: flip-enter-left8 300ms ease-out; }
+@keyframes flip-enter-right8 { from { transform: translateX(48px); opacity: 0; } }
+@keyframes flip-enter-left8 { from { transform: translateX(-48px); opacity: 0; } }
+
+/* Банк слов и пары: рабочая зона тянется */
+#modal-lesson .answer-line,
+#modal-lesson .word-slot {
+  flex: 1 1 auto;
+  align-content: flex-start;
+  min-height: 128px;
+  border: 2px solid var(--line);
+  border-radius: var(--r-card);
+  background: var(--white) linear-gradient(var(--line) 2px, transparent 2px) 0 56px / 100% 58px no-repeat;
+}
+.word-placeholder { color: var(--ink-500); font-size: 14px; font-weight: 700; }
+#modal-lesson .word-bank { margin: 0; }
+#modal-lesson .pairs-grid { flex: 1 1 auto; align-content: center; }
+#modal-lesson .pairs-grid .pair-btn { min-height: 56px; height: 100%; }
+
+/* Экран результата и награда квеста */
+.result-screen {
+  flex: 1 1 auto;
+  display: grid;
+  place-items: center;
+  margin: 0 calc(var(--s3) * -1) calc(var(--s3) * -1);
+  padding: var(--s3);
+  background: var(--bg) url("waves.svg");
+  background-size: 96px;
+}
+.result {
+  position: relative;
+  width: min(100%, 360px);
+  margin-top: var(--s7);
+  padding: calc(88px + var(--s3)) var(--s3) var(--s3);
+  border: 2px solid var(--line);
+  border-radius: var(--r-card);
+  background: var(--white);
+  box-shadow: 0 var(--edge-depth, 4px) 0 var(--line);
+  text-align: center;
+  animation: result-in8 400ms cubic-bezier(.34, 1.56, .64, 1) both;
+}
+@keyframes result-in8 { from { transform: translateY(24px) scale(.92); opacity: 0; } }
+.result__hero { position: absolute; top: 0; left: 50%; display: flex; transform: translate(-50%, -62%); }
+.result__hero .char { position: relative; right: auto; bottom: auto; left: auto; --cw: min(46vw, 170px); animation: hero-hop8 600ms 200ms both; }
+.result__hero--duo .char + .char { margin-left: -8px; }
+@keyframes hero-hop8 { 0% { transform: translateY(24px); opacity: 0; } 60% { transform: translateY(-8px); opacity: 1; } }
+.result__title { display: block; font-size: 28px; font-weight: 800; animation: title-pop8 300ms 200ms both; }
+@keyframes title-pop8 { from { transform: scale(.6); opacity: 0; } }
+.result__subtitle { display: block; margin-top: var(--s1); color: var(--ink-600); font-size: 16px; font-weight: 700; }
+.result__stats { display: flex; justify-content: center; gap: var(--s2); margin-top: var(--s3); }
+.result-stat { min-width: 88px; padding: var(--s2); border: 2px solid var(--line); border-radius: var(--r-input); background: var(--bg); }
+.result-stat strong { display: flex; align-items: center; justify-content: center; gap: var(--s1); font-size: 22px; font-weight: 800; }
+.result-stat strong .icon { width: 20px; height: 20px; color: var(--gold-600); }
+.result-stat > span { color: var(--ink-600); font-size: 14px; font-weight: 700; }
+.result-fact { margin-top: var(--s3); padding: var(--s3); border: 2px solid var(--gold-500); border-radius: var(--r-card); background: var(--gold-50); text-align: left; }
+.result-fact strong { display: block; color: var(--gold-700); font-size: 14px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.result-fact p { margin: var(--s1) 0 0; font-size: 16px; font-weight: 600; }
+.result__points { display: flex; align-items: center; justify-content: center; gap: var(--s2); margin-top: var(--s3); font-size: 22px; font-weight: 800; }
+.result__points .icon { width: 26px; height: 26px; color: var(--gold-600); }
+.result__badge { display: inline-flex; align-items: center; gap: var(--s2); margin-top: var(--s3); padding: var(--s2) var(--s3); }
+.result__badge img { border-radius: 50%; }
+.result .btn { margin-top: var(--s4); animation: choice-in8 250ms 350ms both; }
+
+/* Жизни закончились */
+.hearts-out-text { margin: 0; color: var(--ink-600); font-size: 16px; font-weight: 600; text-align: center; }
+
+/* Счётчик шагов квеста: данные для скринридера, визуально скрыт */
+.boss-step-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Фокус и каретка: в уроке нет текстовых полей, выделять нечего */
+button, .tile, .choice-btn, .word-chip, .pair-btn, .chip, .flip {
+  -webkit-tap-highlight-color: transparent;
+  caret-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage--v8 .char,
+  .stage--v8 .cloud--solo,
+  .stage--v8 .stage__chip,
+  .dialog__list,
+  .dialog__choices .choice,
+  .dialog__chat .chat-bubble,
+  .chat-typing i,
+  .flip--enter-right,
+  .flip--enter-left,
+  .blank.is-filled,
+  .result,
+  .result__hero .char,
+  .result__title,
+  .result .btn { animation: none !important; transition: none !important; }
+}

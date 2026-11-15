@@ -7,12 +7,12 @@ import {
   getStoredToken,
   saveToken,
 } from "./api.js";
-import { characterStage, preload, reactToAnswer, resetStreak, setState, spriteUrl } from "./characters.js";
+import { preload, resetStreak, spriteUrl } from "./characters.js";
 import { lessonCharacter, PLAYER_CHAR, UNIT_CAST } from "./cast.js";
 import { AVATAR_CHARACTERS, AVATAR_COLORS, AVATAR_UNLOCK, AWARDS } from "./cabinet-data.js";
 import "./bashkir-keyboard.js";
 import { speakBashkir } from "./speech.js";
-import { initClouds } from "./clouds.js";
+import { initClouds, refreshClouds } from "./clouds.js";
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -174,6 +174,7 @@ function updateTopBar() {
   $("#rail-streak").textContent = formatNumber(State.user.streak_days);
   $("#library-streak").textContent = formatNumber(State.user.streak_days);
   $("#lesson-hearts").textContent = State.hearts;
+  $("#boss-hearts").textContent = State.hearts;
 }
 
 function setAuthMode(mode) {
@@ -497,6 +498,7 @@ async function startLesson(unitId, lessonId, button) {
     State.lessonChatStep = -1;
     State.lessonStartedAt = Date.now();
     State.hearts = 5;
+    State.sceneAnimated = false;
     State.completing = false;
     resetStreak();
     await preload([lessonId === 1 ? PLAYER_CHAR : lessonCharacter(unitId, lessonId)]);
@@ -533,6 +535,7 @@ function resetLessonFooter(mode = "") {
   footer.className = `duo-modal__footer lesson__foot ${mode}`.trim();
   $("#lesson-feedback-box").hidden = true;
   $("#flashcard-prev")?.remove();
+  $("#typed-answer-btn")?.remove();
 }
 
 function currentLessonCharacter() {
@@ -541,21 +544,322 @@ function currentLessonCharacter() {
   return lessonCharacter(State.currentUnit.unit_id, State.currentLesson.lesson_id, State.currentStepIndex);
 }
 
-function renderFlashcard() {
+// ---------------------------------------------------------------------------
+// V8: единая сцена урока (герои по пояс, облака от рта, диалоги, результат)
+// ---------------------------------------------------------------------------
+
+// Ручной ввод ответа отключён (v8 §3.1): блок «Вписать ответ», поле
+// «Пропущенное слово» и башкирская клавиатура из урока убраны. Если флаг
+// когда-нибудь включат, рядом с главной кнопкой появится ghost-иконка,
+// открывающая лист с полем ввода; постоянно видимого блока нет.
+const ALLOW_TYPED_ANSWERS = false;
+
+// Окно героя и рот (проценты окна; спрайты — квадратные PNG в полный рост).
+// zoom — масштаб спрайта внутри окна, crop — доля ширины окна по высоте
+// (видна верхняя часть фигуры: голова, плечи, руки до пояса).
+const CHAR_META = {
+  boy: { zoom: 1.28, crop: 0.78, mouth: "52 74" },
+  girl: { zoom: 1.28, crop: 0.78, mouth: "48 70" },
+  granny: { zoom: 1.32, crop: 0.78, mouth: "50 49" },
+  bear: { zoom: 1.28, crop: 0.78, mouth: "50 54" },
+  akbuzat: { zoom: 1.0, crop: 0.72, mouth: "78 54" },
+};
+
+const STAGE_FLOOR_SVG = '<svg class="stage__floor" viewBox="0 0 360 32" preserveAspectRatio="none" aria-hidden="true"><path d="M0 16C45 6 90 26 135 16S225 6 270 16 360 26 360 16V32H0Z"/></svg>';
+
+function charWindow(id, side, state = "idle", dialogSide = "") {
+  const meta = CHAR_META[id] || CHAR_META.boy;
+  return `<div class="char character char--${side}" style="--zoom:${meta.zoom};--crop:${meta.crop}" data-char="${esc(id)}" data-mouth="${meta.mouth}" data-emotion="${esc(state)}"${dialogSide ? ` data-dialog-side="${dialogSide}"` : ""} aria-hidden="true"><img class="char__img character__img" src="${spriteUrl(id, state)}" alt="" draggable="false"></div>`;
+}
+
+function stageScene({ mode = "solo", accent = "blue", leftId = PLAYER_CHAR, rightId = "", leftState = "idle", rightState = "idle", cloudHtml = "", chip = "", enter = false, compact = false }) {
+  const duo = mode === "duo";
+  return `<div class="stage stage--v8 stage--${duo ? "duo" : "solo"} stage--accent-${accent}${compact ? " stage--compact" : ""}${enter ? " stage--enter" : ""}" data-stage data-emotion="idle">
+    ${chip ? `<span class="stage__chip">${esc(chip)}</span>` : ""}
+    ${charWindow(leftId, "left", leftState, duo ? "player" : "")}
+    ${duo ? charWindow(rightId, "right", rightState, "npc") : ""}
+    ${cloudHtml}
+    ${STAGE_FLOOR_SVG}
+  </div>`;
+}
+
+function soloCloud(innerHtml) {
+  return `<div class="cloud cloud--solo" data-solo-cloud>${innerHtml}</div>`;
+}
+
+function lessonAccent() {
+  return State.currentUnit?.accent || State.bossUnit?.accent || "blue";
+}
+
+function blurActive() {
+  if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+}
+
+function mouthPoint(stage, side = "") {
+  const char = side ? $(`.char[data-dialog-side="${side}"]`, stage) : $(".char--left", stage);
+  if (!char) return { x: 0, y: 0 };
+  let [px, py] = (char.dataset.mouth || "50 70").split(" ").map(Number);
+  if (char.classList.contains("char--right")) px = 100 - px;
+  const rect = char.getBoundingClientRect();
+  return { x: rect.left + (px / 100) * rect.width, y: rect.top + (py / 100) * rect.height };
+}
+
+function layoutSoloCloud(stage) {
+  const cloud = $("[data-solo-cloud]", stage);
+  if (!cloud) return;
+  const stageRect = stage.getBoundingClientRect();
+  if (!stageRect.height) return;
+  const mouth = mouthPoint(stage);
+  const cloudH = cloud.offsetHeight;
+  const maxTop = Math.max(8, stageRect.height - 32 - cloudH - 8);
+  const top = Math.max(8, Math.min(mouth.y - stageRect.top - cloudH / 2, maxTop));
+  cloud.style.setProperty("--cloud-top", `${Math.round(top)}px`);
+  const tailY = Math.max(14, Math.min(mouth.y - stageRect.top - top, cloudH - 14));
+  cloud.style.setProperty("--tail-y", `${Math.round(tailY)}px`);
+}
+
+function layoutBubbleTail(bubble, stage) {
+  if (!stage || !bubble.isConnected) return;
+  const mouth = mouthPoint(stage, bubble.dataset.side);
+  const rect = bubble.getBoundingClientRect();
+  const tailX = Math.max(16, Math.min(mouth.x - rect.left, rect.width - 16));
+  bubble.style.setProperty("--tail-x", `${Math.round(tailX)}px`);
+}
+
+let stageResizeObserver;
+function observeStage(stage) {
+  if (!stage) return;
+  layoutSoloCloud(stage);
+  if (!("ResizeObserver" in window)) return;
+  if (!stageResizeObserver) {
+    stageResizeObserver = new ResizeObserver((entries) => {
+      entries.forEach(({ target }) => {
+        const stageEl = target.closest("[data-stage]") || target;
+        if (stageEl.classList?.contains("stage--solo")) layoutSoloCloud(stageEl);
+        const modal = stageEl.closest(".lesson");
+        const chat = modal?.querySelector(".dialog__chat");
+        if (chat) {
+          shiftDialog(chat, false);
+          $$(".chat-bubble[data-side]", chat).forEach((bubble) => layoutBubbleTail(bubble, stageEl));
+        }
+      });
+    });
+  }
+  stageResizeObserver.disconnect();
+  stageResizeObserver.observe(stage);
+  $$(".char, [data-solo-cloud]", stage).forEach((el) => stageResizeObserver.observe(el));
+}
+
+function setEmotion(scope, state, dialogSide = "") {
+  const char = dialogSide ? $(`.char[data-dialog-side="${dialogSide}"]`, scope) : $(".char", scope);
+  if (!char) return;
+  const img = $(".character__img", char);
+  if (img) img.src = spriteUrl(char.dataset.char, state);
+  char.dataset.emotion = state;
+  char.closest("[data-stage]")?.setAttribute("data-emotion", state);
+}
+
+let talkTimer;
+function talkAnim(scope, dialogSide = "") {
+  if (!scope || prefersReducedMotion()) return;
+  const chars = $$(".char", scope);
+  chars.forEach((char) => {
+    const speaking = dialogSide ? char.dataset.dialogSide === dialogSide : char === chars[0];
+    char.classList.toggle("is-listening", !speaking && chars.length > 1);
+    if (!speaking) return;
+    char.classList.remove("is-talking");
+    void char.offsetWidth;
+    char.classList.add("is-talking");
+  });
+  clearTimeout(talkTimer);
+  talkTimer = setTimeout(() => {
+    if (scope.isConnected) $$(".char", scope).forEach((char) => char.classList.remove("is-talking", "is-listening"));
+  }, 450);
+}
+
+function reactSolo(ok) {
+  const stage = $("[data-stage]", $("#lesson-scene"));
+  if (!stage) return;
+  setEmotion(stage, ok ? "success" : "fail");
+  clearTimeout(State.emotionTimer);
+  State.emotionTimer = setTimeout(() => {
+    if (stage.isConnected) setEmotion(stage, "idle");
+  }, 1200);
+}
+
+function shiftDialog(chat, animate = true) {
+  const list = chat?.firstElementChild;
+  if (!list) return;
+  if (!animate) list.classList.add("is-instant");
+  const delta = Math.min(0, chat.clientHeight - list.scrollHeight);
+  list.style.transform = `translateY(${delta}px)`;
+  if (!animate) requestAnimationFrame(() => list.classList.remove("is-instant"));
+}
+
+function dialogBubbleHtml(message) {
+  const translation = message.translation ? `<button class="chat-bubble__translate" type="button" data-translation-toggle aria-expanded="false">Перевод</button><span class="chat-bubble__translation" hidden>${esc(message.translation)}</span>` : "";
+  const tts = message.side === "npc" ? `<button class="btn btn-ghost btn-icon chat-bubble__tts" type="button" data-character-tts="${esc(message.text)}" aria-label="Прослушать реплику">${icon("i-volume")}</button>` : "";
+  const caption = message.caption ? `<span class="chat-bubble__caption">${esc(message.caption)}</span>` : "";
+  return `<div class="cloud chat-bubble chat-bubble--${esc(message.side)}${message.mark ? ` is-${esc(message.mark)}` : ""}" data-side="${esc(message.side)}" lang="ba"><div class="chat-bubble__line">${tts}<span class="chat-bubble__content">${esc(message.text)}</span></div>${translation}${caption}</div>`;
+}
+
+function appendDialogBubble(chat, message, { from = null, animate = true } = {}) {
+  const stage = $("[data-stage]", chat.closest(".lesson"));
+  const list = chat.firstElementChild;
+  list.insertAdjacentHTML("beforeend", dialogBubbleHtml(message));
+  const bubble = list.lastElementChild;
+  shiftDialog(chat, false);
+  layoutBubbleTail(bubble, stage);
+  refreshClouds(chat);
+  if (animate && !prefersReducedMotion()) {
+    const end = bubble.getBoundingClientRect();
+    const centerX = end.left + end.width / 2;
+    const centerY = end.top + end.height / 2;
+    if (from) {
+      const start = from.getBoundingClientRect();
+      const scale = Math.max(0.45, start.width / Math.max(1, end.width));
+      bubble.animate([
+        { transform: `translate(${start.left + start.width / 2 - centerX}px, ${start.top + start.height / 2 - centerY}px) scale(${scale})` },
+        { transform: "none" },
+      ], { duration: 400, easing: "cubic-bezier(.34,1.56,.64,1)", fill: "both" });
+    } else if (stage) {
+      const mouth = mouthPoint(stage, message.side);
+      bubble.animate([
+        { transform: `translate(${mouth.x - centerX}px, ${mouth.y - centerY}px) scale(.15)` },
+        { transform: "none" },
+      ], { duration: 350, easing: "cubic-bezier(.34,1.56,.64,1)", fill: "both" });
+    }
+    const content = $(".chat-bubble__content", bubble);
+    content?.animate([{ transform: "translateY(6px)", opacity: 0 }, { transform: "translateY(0)", opacity: 1 }], { duration: 200, delay: 150, fill: "both" });
+  }
+  shiftDialog(chat);
+  return bubble;
+}
+
+function showTyping(chat, side = "npc") {
+  const list = chat.firstElementChild;
+  list.insertAdjacentHTML("beforeend", `<div class="chat-bubble chat-bubble--${side} chat-typing" data-typing aria-label="Персонаж печатает"><i></i><i></i><i></i></div>`);
+  const typing = list.lastElementChild;
+  shiftDialog(chat);
+  return typing;
+}
+
+function npcSpeak(chat, message) {
+  const stage = $("[data-stage]", chat.closest(".lesson"));
+  talkAnim(stage, "npc");
+  if (prefersReducedMotion()) {
+    appendDialogBubble(chat, message, { animate: false });
+    return;
+  }
+  const typing = showTyping(chat, "npc");
+  setTimeout(() => {
+    if (!typing.isConnected) return;
+    typing.remove();
+    appendDialogBubble(chat, message);
+  }, 600);
+}
+
+function countUp(output, target, { duration = 600, delay = 0, prefix = "", suffix = "" } = {}) {
+  if (!output) return;
+  const value = Number(target) || 0;
+  if (prefersReducedMotion() || !value) {
+    output.textContent = `${prefix}${formatNumber(value)}${suffix}`;
+    return;
+  }
+  setTimeout(() => {
+    const startedAt = performance.now();
+    const tick = (now) => {
+      if (!output.isConnected) return;
+      const progress = Math.min(1, (now - startedAt) / duration);
+      output.textContent = `${prefix}${formatNumber(Math.round(value * (1 - (1 - progress) ** 3)))}${suffix}`;
+      if (progress < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, delay);
+}
+
+function slideOutFlip(direction, done) {
+  const flip = $("#flashcard-flip");
+  if (!flip || prefersReducedMotion()) {
+    done();
+    return;
+  }
+  const animation = flip.animate([{ transform: "translateX(0)" }, { transform: `translateX(${direction * -48}px)` }], { duration: 250, easing: "ease-in", fill: "both" });
+  animation.finished.then(done).catch(done);
+}
+
+function flyChip(fromRect, target) {
+  if (!target || !fromRect || prefersReducedMotion()) return;
+  const to = target.getBoundingClientRect();
+  target.animate([
+    { transform: `translate(${fromRect.left - to.left}px, ${fromRect.top - to.top}px)` },
+    { transform: "none" },
+  ], { duration: 250, easing: "cubic-bezier(.2,.8,.2,1)" });
+}
+
+// Ручной ввод ответа (ALLOW_TYPED_ANSWERS): ghost-иконка слева от главной
+// кнопки, открывающая лист с полем. Не постоянно видимый блок.
+function openTypedAnswerSheet(label, onSubmit) {
+  const backdrop = document.createElement("div");
+  backdrop.className = "sheet-backdrop typed-answer-sheet";
+  backdrop.innerHTML = `<div class="bottom-sheet" role="dialog" aria-modal="true"><h2>${esc(label)}</h2><label class="field"><span class="label">${esc(label)}</span><input class="input" type="text" lang="ba" data-bashkir-input autocomplete="off"></label><button class="btn btn-primary btn-lg btn-block" type="button" data-typed-ok>Готово</button></div>`;
+  const input = $("input", backdrop);
+  const close = () => backdrop.remove();
+  $("[data-typed-ok]", backdrop).addEventListener("click", () => { onSubmit(input.value); close(); });
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") { onSubmit(input.value); close(); }
+  });
+  backdrop.addEventListener("click", (event) => { if (event.target === backdrop) close(); });
+  document.body.append(backdrop);
+  input.focus();
+}
+
+function addTypedAnswerButton(label, onSubmit) {
+  if (!ALLOW_TYPED_ANSWERS) return;
+  const action = $("#lesson-action-btn");
+  const button = document.createElement("button");
+  button.id = "typed-answer-btn";
+  button.type = "button";
+  button.className = "btn btn-ghost btn-icon";
+  button.setAttribute("aria-label", label);
+  button.innerHTML = icon("i-pencil");
+  button.addEventListener("click", () => openTypedAnswerSheet(label, onSubmit));
+  $("#lesson-footer").insertBefore(button, action);
+}
+
+const FLASHCARD_HINTS = {
+  front: "Нажми на карточку — увидишь перевод",
+  back: "Запомни и нажми «Дальше»",
+};
+
+function renderFlashcard(enterDirection = 0) {
   const lesson = State.currentLesson;
   const card = lesson.cards[State.flashIndex];
   const container = $("#lesson-step-container");
-  $("#lesson-modal-title").textContent = lesson.instruction;
+  const title = $("#lesson-modal-title");
+  title.textContent = "Карточки слов";
+  title.hidden = true;
   $("#lesson-hearts-wrap").hidden = true;
   $("#lesson-character-mini").hidden = true;
-  $("#lesson-scene").innerHTML = characterStage(PLAYER_CHAR, card.ba, { className: "stage--compact", lang: "ba", tts: card.audio_tts || card.ba });
+  const enter = !State.sceneAnimated;
+  State.sceneAnimated = true;
+  $("#modal-lesson").classList.remove("lesson--dialog");
+  $("#modal-lesson").dataset.stepType = "flashcards";
+  $("#lesson-scene").innerHTML = stageScene({
+    accent: lessonAccent(),
+    leftId: PLAYER_CHAR,
+    compact: true,
+    enter,
+    cloudHtml: soloCloud(`<span class="speech__text">${State.flashFlipped ? FLASHCARD_HINTS.back : FLASHCARD_HINTS.front}</span>`),
+  });
+  observeStage($("[data-stage]", $("#lesson-scene")));
   $("#lesson-progress-bar").style.setProperty("--progress", `${((State.flashIndex + 1) / lesson.cards.length) * 100}%`);
   resetLessonFooter("is-flashcards");
   const action = $("#lesson-action-btn");
   action.disabled = false;
   action.className = "btn btn-primary btn-lg";
   action.textContent = State.flashIndex === lesson.cards.length - 1 ? (lesson.quiz.length ? "Перейти к квизу" : "Завершить этап") : "Дальше";
-  container.innerHTML = `<div class="flip flashcard ${State.flashFlipped ? "is-flipped" : ""}" id="flashcard-flip" role="button" tabindex="0" aria-label="Перевернуть карточку">
+  container.innerHTML = `<div class="flip flashcard ${State.flashFlipped ? "is-flipped" : ""}${enterDirection ? ` flip--enter-${enterDirection > 0 ? "right" : "left"}` : ""}" id="flashcard-flip" role="button" tabindex="0" aria-label="Перевернуть карточку">
     <div class="flip__inner">
       <div class="flip__face flashcard-side flashcard-front"><strong class="flip__word" lang="ba">${esc(card.ba)}</strong><button class="btn btn-ghost btn-icon flip__audio" id="flashcard-audio" type="button" aria-label="Прослушать башкирское слово">${icon("i-volume")}</button><span class="flashcard-hint">Нажми, чтобы увидеть перевод</span></div>
       <div class="flip__face flip__face--back flashcard-side flashcard-back"><strong class="flip__word">${esc(card.ru)}</strong><div class="flashcard-example"><strong lang="ba">${esc(card.example_ba)}</strong><p>${esc(card.example_ru)}</p></div><span class="flashcard-hint">Нажми, чтобы вернуться</span></div>
@@ -565,6 +869,8 @@ function renderFlashcard() {
   const toggleCard = () => {
     State.flashFlipped = !State.flashFlipped;
     flip.classList.toggle("is-flipped", State.flashFlipped);
+    const cloudText = $("#lesson-scene .speech__text");
+    if (cloudText) cloudText.textContent = State.flashFlipped ? FLASHCARD_HINTS.back : FLASHCARD_HINTS.front;
   };
   flip.addEventListener("click", (event) => {
     if (!event.target.closest("#flashcard-audio")) toggleCard();
@@ -590,7 +896,7 @@ function renderFlashcard() {
     if (State.flashIndex > 0) {
       State.flashIndex -= 1;
       State.flashFlipped = false;
-      renderFlashcard();
+      renderFlashcard(-1);
     }
   });
   $("#lesson-footer").insertBefore(previous, action);
@@ -608,9 +914,12 @@ function renderQuizQuestion() {
   const question = lesson.quiz[State.quizIndex];
   State.lessonPhase = "answering";
   State.selectedAnswer = null;
-  $("#lesson-modal-title").textContent = question.direction === "ba_to_ru" ? "Выбери перевод на русский" : "Выбери башкирский вариант";
+  const title = $("#lesson-modal-title");
+  title.hidden = false;
+  title.textContent = question.direction === "ba_to_ru" ? "Выбери перевод на русский" : "Выбери башкирский вариант";
   $("#lesson-hearts-wrap").hidden = false;
   $("#lesson-character-mini").hidden = true;
+  $("#modal-lesson").dataset.stepType = "quiz";
   $("#lesson-progress-bar").style.setProperty("--progress", `${((lesson.cards.length + State.quizIndex + 1) / (lesson.cards.length + lesson.quiz.length)) * 100}%`);
   resetLessonFooter();
   const action = $("#lesson-action-btn");
@@ -618,7 +927,15 @@ function renderQuizQuestion() {
   action.className = "btn btn-success btn-lg btn-block";
   action.textContent = "Проверить";
   const isBashkir = question.direction === "ba_to_ru";
-  $("#lesson-scene").innerHTML = characterStage(PLAYER_CHAR, question.prompt, { lang: isBashkir ? "ba" : "ru", tts: isBashkir ? question.prompt : "" });
+  const enter = !State.sceneAnimated;
+  State.sceneAnimated = true;
+  $("#lesson-scene").innerHTML = stageScene({
+    accent: lessonAccent(),
+    leftId: PLAYER_CHAR,
+    enter,
+    cloudHtml: soloCloud(`${isBashkir ? `<button class="btn btn-ghost btn-icon speech__audio cloud__audio" type="button" data-character-tts="${esc(question.prompt)}" aria-label="Прослушать фразу">${icon("i-volume")}</button>` : ""}<span class="speech__text" ${isBashkir ? 'lang="ba"' : ""}>${esc(question.prompt)}</span>`),
+  });
+  observeStage($("[data-stage]", $("#lesson-scene")));
   $("#lesson-step-container").innerHTML = `<div class="choice-list">${question.options.map((option) => `<button type="button" class="tile choice choice-btn" data-quiz-choice="${esc(option)}"><span class="choice-marker"></span><span ${question.direction === "ru_to_ba" ? 'lang="ba"' : ""}>${esc(option)}</span></button>`).join("")}</div>`;
   $$('[data-quiz-choice]').forEach((button) => button.addEventListener("click", () => {
     if (State.lessonPhase !== "answering") return;
@@ -631,7 +948,6 @@ function renderQuizQuestion() {
 
 function renderLesson() {
   if (State.currentLesson.lesson_type === "flashcards") {
-    $("#modal-lesson").classList.remove("lesson--dialog");
     if (State.inQuiz) renderQuizQuestion();
     else renderFlashcard();
     return;
@@ -644,43 +960,72 @@ function renderLesson() {
   State.wordBankTyped = "";
   State.pairSelection = { ba: null, ru: null };
   State.matchedPairs = new Set();
-  const titles = { word_bank: "Собери фразу", fill_blank: "Выбери пропущенное слово", chat_choice: "Выбери ответ", match_pairs: "Соедини пары" };
-  $("#lesson-modal-title").textContent = titles[step.type] || lesson.instruction;
+  const enter = !State.sceneAnimated;
+  State.sceneAnimated = true;
+  const modal = $("#modal-lesson");
+  modal.dataset.stepType = step.type;
   $("#lesson-hearts-wrap").hidden = false;
   $("#lesson-character-mini").hidden = true;
-  const sentence = `${step.sentence_pre || ""} ____ ${step.sentence_post || ""}`.trim();
-  const sceneLine = step.type === "fill_blank" ? sentence : step.prompt;
-  const isDialog = step.type === "chat_choice";
-  $("#modal-lesson").classList.toggle("lesson--dialog", isDialog);
-  $("#lesson-scene").innerHTML = isDialog
-    ? dialogScene("granny", step.prompt || "Диалог")
-    : characterStage(currentLessonCharacter(), sceneLine, { lang: "ba" });
   $("#lesson-progress-bar").style.setProperty("--progress", `${((State.currentStepIndex + 1) / lesson.steps.length) * 100}%`);
   resetLessonFooter();
   const action = $("#lesson-action-btn");
   action.disabled = true;
   action.className = "btn btn-success btn-lg btn-block";
   action.textContent = "Проверить";
-  if (step.type === "word_bank") renderWordBank(step);
-  if (step.type === "fill_blank") renderFillBlank(step);
-  if (step.type === "chat_choice") renderChatChoice(step);
-  if (step.type === "match_pairs") renderMatchPairs(step);
+  const title = $("#lesson-modal-title");
+  const npc = currentLessonCharacter();
+  if (step.type === "chat_choice") {
+    modal.classList.add("lesson--dialog");
+    title.hidden = true;
+    title.textContent = "Диалог";
+    $("#lesson-scene").innerHTML = stageScene({ mode: "duo", accent: lessonAccent(), leftId: PLAYER_CHAR, rightId: npc, chip: lesson.lesson_title, enter });
+    observeStage($("[data-stage]", $("#lesson-scene")));
+    renderChatChoice(step);
+    return;
+  }
+  modal.classList.remove("lesson--dialog");
+  if (step.type === "word_bank") {
+    title.hidden = true;
+    title.textContent = "Собери фразу";
+    $("#lesson-scene").innerHTML = stageScene({ accent: lessonAccent(), leftId: npc, cloudHtml: soloCloud(`<span class="speech__text">${esc(step.prompt)}</span>`), enter });
+    renderWordBank(step);
+  }
+  if (step.type === "fill_blank") {
+    title.hidden = false;
+    title.textContent = "Выбери пропущенное слово";
+    $("#lesson-scene").innerHTML = stageScene({
+      accent: lessonAccent(),
+      leftId: npc,
+      cloudHtml: soloCloud(`<span class="speech__text" lang="ba">${esc(step.sentence_pre)}<span id="blank-placeholder" class="blank blank-placeholder">____</span>${esc(step.sentence_post)}</span><span class="cloud__hint">${icon("i-book", "icon icon-sm")}Перевод слова: ${esc(step.hint)}</span>`),
+      enter,
+    });
+    renderFillBlank(step);
+  }
+  if (step.type === "match_pairs") {
+    title.hidden = false;
+    title.textContent = step.prompt || "Соедини пары";
+    $("#lesson-scene").innerHTML = stageScene({ accent: lessonAccent(), leftId: npc, enter });
+    renderMatchPairs(step);
+  }
+  observeStage($("[data-stage]", $("#lesson-scene")));
 }
 
 function renderWordBank(step) {
   const container = $("#lesson-step-container");
-  container.innerHTML = `<div class="answer-line word-slot" id="lesson-word-slot"><span class="word-placeholder">Нажимай на слова ниже</span></div><div class="bank word-bank" id="lesson-word-bank">${step.bank.map((word, index) => `<button type="button" class="tile word-chip" lang="ba" data-bank-index="${index}">${esc(word)}</button>`).join("")}</div><details class="manual-answer"><summary>Ввести фразу вручную</summary><label class="field"><span class="label">Башкирская фраза</span><input id="word-bank-typed" class="input" type="text" lang="ba" data-bashkir-input autocomplete="off" placeholder="Мин …"></label></details>`;
+  container.innerHTML = `<div class="answer-line word-slot" id="lesson-word-slot"><span class="word-placeholder">Нажимай на слова</span></div><div class="bank word-bank" id="lesson-word-bank">${step.bank.map((word, index) => `<button type="button" class="tile word-chip" lang="ba" data-bank-index="${index}">${esc(word)}</button>`).join("")}</div>`;
   $$('[data-bank-index]', container).forEach((chip) => {
     chip.addEventListener("click", () => {
       if (State.lessonPhase !== "answering") return;
+      const from = chip.getBoundingClientRect();
       State.wordBankPlaced.push({ word: step.bank[Number(chip.dataset.bankIndex)], bankIndex: Number(chip.dataset.bankIndex) });
       chip.classList.add("is-used");
       chip.disabled = true;
       updateWordSlot(step);
+      flyChip(from, $(`[data-placed-index="${State.wordBankPlaced.length - 1}"]`, $("#lesson-word-slot")));
     });
   });
-  $("#word-bank-typed").addEventListener("input", (event) => {
-    State.wordBankTyped = event.currentTarget.value;
+  addTypedAnswerButton("Ввести фразу вручную", (value) => {
+    State.wordBankTyped = value;
     $("#lesson-action-btn").disabled = !State.wordBankTyped.trim() && State.wordBankPlaced.length === 0;
   });
 }
@@ -689,15 +1034,17 @@ function updateWordSlot(step) {
   const slot = $("#lesson-word-slot");
   slot.innerHTML = State.wordBankPlaced.length
     ? State.wordBankPlaced.map((item, index) => `<button type="button" class="tile word-chip word-chip--placed" lang="ba" data-placed-index="${index}">${esc(item.word)}</button>`).join("")
-    : '<span class="word-placeholder">Нажимай на слова ниже</span>';
+    : '<span class="word-placeholder">Нажимай на слова</span>';
   $$('[data-placed-index]', slot).forEach((chip) => {
     chip.addEventListener("click", () => {
       if (State.lessonPhase !== "answering") return;
+      const from = chip.getBoundingClientRect();
       const [removed] = State.wordBankPlaced.splice(Number(chip.dataset.placedIndex), 1);
       const bankChip = $(`[data-bank-index="${removed.bankIndex}"]`, $("#lesson-word-bank"));
       bankChip.classList.remove("is-used");
       bankChip.disabled = false;
       updateWordSlot(step);
+      flyChip(from, bankChip);
     });
   });
   $("#lesson-action-btn").disabled = State.wordBankPlaced.length === 0 && !State.wordBankTyped.trim();
@@ -705,24 +1052,28 @@ function updateWordSlot(step) {
 
 function renderFillBlank(step) {
   const container = $("#lesson-step-container");
-  container.innerHTML = `<div class="sentence-card" lang="ba"><span>${esc(step.sentence_pre)}</span><span id="blank-placeholder" class="blank blank-placeholder">___</span><span>${esc(step.sentence_post)}</span></div><div class="choice-list">${step.options.map((option) => `<button type="button" class="tile choice choice-btn" data-choice="${esc(option)}"><span class="choice-marker"></span><span lang="ba">${esc(option)}</span></button>`).join("")}</div><details class="manual-answer"><summary>Вписать ответ</summary><label class="field"><span class="label">Пропущенное слово</span><input id="blank-typed" class="input" type="text" lang="ba" data-bashkir-input autocomplete="off"></label></details><p class="exercise-hint">${esc(step.hint)}</p>`;
+  container.innerHTML = `<div class="choice-list">${step.options.map((option) => `<button type="button" class="tile choice choice-btn" data-choice="${esc(option)}"><span class="choice-marker"></span><span lang="ba">${esc(option)}</span></button>`).join("")}</div>`;
   $$('[data-choice]', container).forEach((button) => {
     button.addEventListener("click", () => {
       if (State.lessonPhase !== "answering") return;
       $$('[data-choice]', container).forEach((item) => item.classList.remove("is-selected"));
       button.classList.add("is-selected");
       State.selectedAnswer = button.dataset.choice;
-      $("#blank-placeholder").textContent = button.dataset.choice;
-      $("#blank-placeholder").classList.add("is-selected");
+      const blank = $("#blank-placeholder");
+      blank.textContent = button.dataset.choice;
+      blank.classList.remove("is-filled");
+      void blank.offsetWidth;
+      blank.classList.add("is-filled");
+      layoutSoloCloud($("[data-stage]", $("#lesson-scene")));
       $("#lesson-action-btn").disabled = false;
     });
   });
-  $("#blank-typed").addEventListener("input", (event) => {
-    State.selectedAnswer = event.currentTarget.value;
-    $$('[data-choice]', container).forEach((item) => item.classList.remove("is-selected"));
-    $("#blank-placeholder").textContent = State.selectedAnswer.trim() || "___";
-    $("#blank-placeholder").classList.toggle("is-selected", Boolean(State.selectedAnswer.trim()));
-    $("#lesson-action-btn").disabled = !State.selectedAnswer.trim();
+  addTypedAnswerButton("Вписать ответ", (value) => {
+    State.selectedAnswer = value;
+    const blank = $("#blank-placeholder");
+    blank.textContent = value.trim() || "____";
+    blank.classList.toggle("is-filled", Boolean(value.trim()));
+    $("#lesson-action-btn").disabled = !value.trim();
   });
 }
 
@@ -730,88 +1081,25 @@ function prefersReducedMotion() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-function dialogActor(id, side, state = "idle") {
-  const player = side === "player";
-  return `<div class="mascot-crop dialog__actor ${player ? "is-listening" : "is-speaking"}" data-dialog-side="${side}" data-facing="${player ? "right" : "left"}" data-mouth="${player ? "66 25" : "34 25"}" ${player ? "data-player-stage" : "data-boss-stage data-character-stage"} data-emotion="${state}"><div class="character" data-char="${id}" data-state="${state}" data-emotion="${state}" aria-hidden="true"><img class="character__img" src="${spriteUrl(id, state)}" width="320" height="320" alt="" draggable="false"></div></div>`;
-}
-
-function dialogScene(npcId, label, reward = false) {
-  return `<div class="dialog__stage boss-duo-stage" data-dialog-stage aria-label="${esc(label)}">${dialogActor(PLAYER_CHAR, "player", reward ? "combo" : "idle")}${dialogActor(npcId, "npc", reward ? "special" : "idle")}</div>`;
-}
-
-let dialogResizeObserver;
-let observedDialogStage = null;
-
-function setBubbleMouthOrigin(bubble, stage) {
-  const actor = $(`[data-dialog-side="${bubble.classList.contains("chat-bubble--player") ? "player" : "npc"}"]`, stage);
-  if (!actor) return;
-  const [x, y] = (actor.dataset.mouth || "50 25").split(" ").map(Number);
-  const actorRect = actor.getBoundingClientRect();
-  const bubbleRect = bubble.getBoundingClientRect();
-  bubble.style.setProperty("--mouth-x", `${actorRect.left + actorRect.width * x / 100 - bubbleRect.left - bubbleRect.width / 2}px`);
-  bubble.style.setProperty("--mouth-y", `${actorRect.top + actorRect.height * y / 100 - bubbleRect.top - bubbleRect.height / 2}px`);
-}
-
-function observeDialog(stage) {
-  if (!stage) return;
-  observedDialogStage = stage;
-  if (!("ResizeObserver" in window)) return;
-  if (!dialogResizeObserver) {
-    dialogResizeObserver = new ResizeObserver(() => {
-      if (!observedDialogStage?.isConnected) return;
-      const modal = observedDialogStage.closest(".lesson");
-      $$(".chat-bubble[data-side]", modal).forEach((bubble) => setBubbleMouthOrigin(bubble, observedDialogStage));
-    });
-  }
-  dialogResizeObserver.disconnect();
-  dialogResizeObserver.observe(stage);
-  $$(".dialog__actor", stage).forEach((actor) => dialogResizeObserver.observe(actor));
-}
-
-function dialogBubble(message) {
-  const translation = message.translation ? `<button class="chat-bubble__translate" type="button" data-translation-toggle aria-expanded="false">Перевод</button><span class="chat-bubble__translation" hidden>${esc(message.translation)}</span>` : "";
-  return `<div class="cloud chat-bubble chat-bubble--${message.side}" data-side="${message.side}" lang="ba"><div class="chat-bubble__line">${message.side === "npc" ? `<button class="btn btn-ghost btn-icon chat-bubble__tts" type="button" data-character-tts="${esc(message.text)}" aria-label="Прослушать реплику">${icon("i-volume")}</button>` : ""}<span class="chat-bubble__content">${esc(message.text)}</span></div>${translation}</div>`;
-}
-
-function renderDialogMessages(chat, messages, stage, animateLast = false, originButton = null) {
-  if (!chat || !stage) return;
-  chat.innerHTML = messages.map(dialogBubble).join("");
-  const bubbles = $$(".chat-bubble[data-side]", chat);
-  bubbles.forEach((bubble) => setBubbleMouthOrigin(bubble, stage));
-  const last = bubbles.at(-1);
-  if (animateLast && last && !prefersReducedMotion()) {
-    if (originButton) {
-      const from = originButton.getBoundingClientRect();
-      const to = last.getBoundingClientRect();
-      last.animate([
-        { transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${Math.max(.45, from.width / to.width)})` },
-        { transform: "translate(0, 0) scale(1)" },
-      ], { duration: 350, easing: "cubic-bezier(.2,.8,.2,1)" });
-    } else {
-      last.classList.add("is-new");
-    }
-  }
-  chat.scrollTop = chat.scrollHeight;
-}
-
 function renderChatChoice(step) {
   const container = $("#lesson-step-container");
-  const stage = $("[data-dialog-stage]", $("#lesson-scene"));
+  container.innerHTML = `<div class="dialog__chat" id="lesson-chat" aria-live="polite"><div class="dialog__list"></div></div><p class="dialog__instruction">Выбери ответ</p><div class="choice-list dialog__choices">${step.options.map((option, index) => `<button type="button" class="tile choice choice-btn" data-chat-index="${index}" style="--i:${index}"><span class="choice-marker"></span><span lang="ba">${esc(option.text)}</span></button>`).join("")}</div>`;
+  const chat = $("#lesson-chat");
   if (State.lessonChatStep !== State.currentStepIndex) {
-    State.lessonChat = [{ side: "npc", text: step.speaker_ba || "", translation: step.speaker_ru || step.speaker_translation_ru || "" }];
+    State.lessonChat = [];
     State.lessonChatStep = State.currentStepIndex;
+    const message = { side: "npc", text: step.speaker_ba || "", translation: step.speaker_ru || step.speaker_translation_ru || "" };
+    State.lessonChat.push(message);
+    npcSpeak(chat, message);
+  } else {
+    State.lessonChat.forEach((message) => appendDialogBubble(chat, message, { animate: false }));
   }
-  container.innerHTML = `<div class="boss-chat dialog__chat" id="lesson-chat" aria-live="polite"></div><div class="choice-list dialog__choices">${step.options.map((option, index) => `<button type="button" class="tile choice choice-btn" data-chat-index="${index}"><span class="choice-marker"></span><span lang="ba">${esc(option.text)}</span></button>`).join("")}</div>`;
-  observeDialog(stage);
-  renderDialogMessages($("#lesson-chat"), State.lessonChat, stage, true);
   $$('[data-chat-index]', container).forEach((button) => {
     button.addEventListener("click", () => {
       if (State.lessonPhase !== "answering") return;
       State.selectedAnswer = step.options[Number(button.dataset.chatIndex)];
+      $$('[data-chat-index]', container).forEach((item) => item.classList.remove("is-selected"));
       button.classList.add("is-selected");
-      State.lessonChat.push({ side: "player", text: State.selectedAnswer.text, translation: State.selectedAnswer.translation_ru || State.selectedAnswer.translation || "" });
-      $(".dialog__choices", container).classList.add("is-resolved");
-      renderDialogMessages($("#lesson-chat"), State.lessonChat, stage, true, button);
       $("#lesson-action-btn").disabled = false;
     });
   });
@@ -843,12 +1131,16 @@ function selectPair(step, side, key, value) {
   if (!matched) {
     State.hearts = Math.max(0, State.hearts - 1);
     updateTopBar();
-    reactToAnswer($("[data-character-stage]", $("#lesson-scene")), false, step.prompt);
+    reactSolo(false);
   } else if (State.matchedPairs.size === step.pairs.length) {
-    reactToAnswer($("[data-character-stage]", $("#lesson-scene")), true, step.prompt);
+    reactSolo(true);
   }
   State.pairSelection = { ba: null, ru: null };
   setTimeout(() => {
+    if (State.hearts === 0) {
+      renderHeartsOut("lesson");
+      return;
+    }
     State.lessonPhase = "answering";
     renderMatchPairs(step);
   }, 300);
@@ -882,8 +1174,67 @@ function markLessonChoice(correct, correctAnswer) {
   }
 }
 
+function renderHeartsOut(kind) {
+  const isBoss = kind === "boss";
+  if (isBoss) State.bossPhase = "hearts-out";
+  else State.lessonPhase = "hearts-out";
+  const scene = $(isBoss ? "#boss-scene" : "#lesson-scene");
+  const title = $(isBoss ? "#boss-modal-title" : "#lesson-modal-title");
+  const container = $(isBoss ? "#boss-step-container" : "#lesson-step-container");
+  const footer = $(isBoss ? "#boss-footer" : "#lesson-footer");
+  const action = $(isBoss ? "#boss-action-btn" : "#lesson-action-btn");
+  scene.innerHTML = stageScene({ accent: lessonAccent(), leftId: PLAYER_CHAR, leftState: "thinking", compact: true });
+  observeStage($("[data-stage]", scene));
+  title.hidden = false;
+  title.textContent = "Попробуй ещё раз";
+  container.innerHTML = '<p class="hearts-out-text">Жизни закончились. Повтори слова на карточках — там жизни не тратятся.</p>';
+  footer.classList.remove("is-hidden");
+  footer.className = "duo-modal__footer lesson__foot";
+  $(isBoss ? "#boss-feedback-box" : "#lesson-feedback-box").hidden = true;
+  action.className = "btn btn-primary btn-lg btn-block";
+  action.textContent = "Начать заново";
+  action.disabled = false;
+}
+
+function restartLesson() {
+  State.currentStepIndex = 0;
+  State.lessonPhase = "answering";
+  State.flashIndex = 0;
+  State.flashFlipped = false;
+  State.inQuiz = false;
+  State.quizIndex = 0;
+  State.lessonAnswers = 0;
+  State.lessonCorrect = 0;
+  State.lessonChat = [];
+  State.lessonChatStep = -1;
+  State.lessonStartedAt = Date.now();
+  State.hearts = 5;
+  State.sceneAnimated = false;
+  updateTopBar();
+  renderLesson();
+}
+
+function restartBoss() {
+  State.bossStageIndex = 0;
+  State.bossPhase = "answering";
+  State.bossChat = [];
+  State.bossChatStage = -1;
+  State.bossAnswers = 0;
+  State.bossCorrect = 0;
+  State.hearts = 5;
+  State.bossStartedAt = Date.now();
+  State.sceneAnimated = false;
+  updateTopBar();
+  renderBossStage();
+}
+
 async function handleLessonAction() {
   if (State.completing || !State.currentLesson) return;
+  blurActive();
+  if (State.lessonPhase === "hearts-out") {
+    restartLesson();
+    return;
+  }
   if (State.lessonPhase === "complete") {
     const message = State.completionMessage;
     closeLesson();
@@ -897,9 +1248,11 @@ async function handleLessonAction() {
   if (lesson.lesson_type === "flashcards") {
     if (!State.inQuiz) {
       if (State.flashIndex < lesson.cards.length - 1) {
-        State.flashIndex += 1;
-        State.flashFlipped = false;
-        renderFlashcard();
+        slideOutFlip(1, () => {
+          State.flashIndex += 1;
+          State.flashFlipped = false;
+          renderFlashcard(1);
+        });
       } else if (lesson.quiz.length) {
         State.inQuiz = true;
         State.quizIndex = 0;
@@ -916,12 +1269,16 @@ async function handleLessonAction() {
       State.lessonCorrect += Number(correct);
       State.lessonPhase = "feedback";
       markLessonChoice(correct, question.correct_answer);
-      reactToAnswer($("[data-character-stage]", $("#lesson-scene")), correct, question.prompt);
-      showLessonFeedback(correct, question.correct_answer, State.quizIndex === lesson.quiz.length - 1);
+      reactSolo(correct);
       if (!correct) {
         State.hearts = Math.max(0, State.hearts - 1);
         updateTopBar();
+        if (State.hearts === 0) {
+          renderHeartsOut("lesson");
+          return;
+        }
       }
+      showLessonFeedback(correct, question.correct_answer, State.quizIndex === lesson.quiz.length - 1);
     } else {
       State.quizIndex += 1;
       if (State.quizIndex < lesson.quiz.length) renderQuizQuestion();
@@ -945,19 +1302,40 @@ async function handleLessonAction() {
     State.lessonPhase = "feedback";
     const answer = correctAnswerText(step);
     markLessonChoice(correct, answer);
-    const scene = $("[data-character-stage]", $("#lesson-scene"));
-    const idleLine = $(".speech__text", scene)?.textContent || "";
-    reactToAnswer(scene, correct, idleLine);
     if (step.type === "chat_choice") {
-      setState($("[data-player-stage]", $("#lesson-scene")), correct ? "success" : "fail");
-      $(".chat-bubble--player:last-child", $("#lesson-chat"))?.classList.add(correct ? "is-correct" : "is-wrong");
+      const container = $("#lesson-step-container");
+      const chat = $("#lesson-chat");
+      const scene = $("[data-stage]", $("#lesson-scene"));
+      const selected = $(".choice-btn.is-selected", container);
+      $(".dialog__choices", container).classList.add("is-resolved");
+      setTimeout(() => $(".dialog__choices", container)?.classList.add("is-gone"), 260);
+      const playerMsg = { side: "player", text: State.selectedAnswer.text };
+      State.lessonChat.push(playerMsg);
+      const bubble = appendDialogBubble(chat, playerMsg, { from: selected });
+      talkAnim(scene, "player");
+      setTimeout(() => {
+        bubble.classList.add(correct ? "is-correct" : "is-wrong");
+        setEmotion(scene, correct ? "success" : "fail", "player");
+        setEmotion(scene, correct ? "success" : "thinking", "npc");
+      }, prefersReducedMotion() ? 0 : 450);
+    } else {
+      reactSolo(correct);
     }
-    showLessonFeedback(correct, answer, State.currentStepIndex === lesson.steps.length - 1);
     if (!correct) {
       State.hearts = Math.max(0, State.hearts - 1);
       updateTopBar();
+      if (State.hearts === 0) {
+        renderHeartsOut("lesson");
+        return;
+      }
     }
+    showLessonFeedback(correct, answer, State.currentStepIndex === lesson.steps.length - 1);
   } else {
+    if (step.type === "chat_choice") {
+      const scene = $("[data-stage]", $("#lesson-scene"));
+      setEmotion(scene, "idle", "player");
+      setEmotion(scene, "idle", "npc");
+    }
     State.currentStepIndex += 1;
     if (State.currentStepIndex < lesson.steps.length) renderLesson();
     else await completeCurrentLesson();
@@ -983,21 +1361,37 @@ function showConfetti() {
   setTimeout(() => confetti.remove(), 1600);
 }
 
+function formatLessonTime(seconds) {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
 function renderLessonComplete(response, score) {
   State.lessonPhase = "complete";
-  State.completionMessage = response.already_completed ? "Этап уже был пройден — повторные очки не начислены" : `Этап завершён! +${response.awarded_xp} очков`;
-  $("#lesson-modal-title").textContent = "Урок пройден!";
+  State.completionMessage = response.already_completed ? "Этап уже был пройден — повторные очки не начислены" : `Этап завершён! +${formatNumber(response.awarded_xp)} очков`;
+  const title = $("#lesson-modal-title");
+  title.textContent = "Урок пройден!";
+  title.hidden = true;
   $("#lesson-hearts-wrap").hidden = true;
   $("#lesson-character-mini").hidden = true;
   $("#lesson-progress-bar").style.setProperty("--progress", "100%");
+  $("#lesson-scene").innerHTML = "";
   const seconds = Math.max(1, Math.round((Date.now() - State.lessonStartedAt) / 1000));
-  $("#lesson-scene").innerHTML = characterStage(PLAYER_CHAR, "Афарин!", { state: "combo", lang: "ba" });
-  $("#lesson-step-container").innerHTML = `<div class="ornament-bg" aria-hidden="true"></div><div class="lesson-complete"><div class="stat-grid lesson-complete__stats"><div class="card stat-card"><strong>+${formatNumber(response.awarded_xp)}</strong><span>очков</span></div><div class="card stat-card"><strong>${score}%</strong><span>точность</span></div><div class="card stat-card"><strong>${seconds} сек</strong><span>время</span></div></div></div>`;
-  resetLessonFooter();
-  const action = $("#lesson-action-btn");
-  action.className = "btn btn-success btn-lg btn-block";
-  action.textContent = "Продолжить";
-  action.disabled = false;
+  const points = Number(response.awarded_xp) || 0;
+  $("#lesson-step-container").innerHTML = `<div class="result-screen"><div class="result">
+    <div class="result__hero">${charWindow(PLAYER_CHAR, "left", "combo")}</div>
+    <strong class="result__title" lang="ba">Афарин!</strong>
+    <span class="result__subtitle">Урок пройден</span>
+    <div class="result__stats">
+      ${points ? `<div class="result-stat"><strong>${icon("i-honey")}<span data-result-points>0</span></strong><span>очки</span></div>` : ""}
+      <div class="result-stat"><strong><span data-result-accuracy>0</span>%</strong><span>точность</span></div>
+      <div class="result-stat"><strong data-result-time>${formatLessonTime(seconds)}</strong><span>время</span></div>
+    </div>
+    <button class="btn btn-success btn-lg btn-block" type="button" id="lesson-result-continue">Продолжить</button>
+  </div></div>`;
+  countUp($("[data-result-points]"), points, { prefix: "+" });
+  countUp($("[data-result-accuracy]"), score, { delay: 80 });
+  $("#lesson-footer").classList.add("is-hidden");
+  $("#lesson-result-continue").addEventListener("click", () => handleLessonAction());
 }
 
 async function completeCurrentLesson() {
@@ -1041,15 +1435,18 @@ async function startBoss(unitId, button) {
     State.bossPhase = "answering";
     State.bossChat = [];
     State.bossChatStage = -1;
-    State.bossPlayerStage = -1;
     State.bossAnswers = 0;
     State.bossCorrect = 0;
+    State.hearts = 5;
+    State.bossStartedAt = Date.now();
+    State.sceneAnimated = false;
     State.completing = false;
     resetStreak();
     await preload([(UNIT_CAST[unitId] || UNIT_CAST[1]).boss, PLAYER_CHAR]);
     $("#modal-boss").hidden = false;
     document.body.classList.add("modal-open");
     $("#boss-modal-title").textContent = unit.final_boss_node.quest_title;
+    updateTopBar();
     renderBossStage();
   } catch (error) {
     showToast(error.message);
@@ -1062,114 +1459,154 @@ async function startBoss(unitId, button) {
 function closeBoss() {
   if (State.completing) return;
   $("#modal-boss").hidden = true;
+  $("#lesson-exit-sheet").hidden = true;
   document.body.classList.remove("modal-open");
   State.bossUnit = null;
-}
-
-function bossScene(bossChar, title, reward = false) {
-  return dialogScene(bossChar, title, reward);
-}
-
-function renderBossChatMessages(animateLast = false, originButton = null) {
-  const stage = $("[data-dialog-stage]", $("#boss-scene"));
-  observeDialog(stage);
-  renderDialogMessages($("#boss-chat"), State.bossChat, stage, animateLast, originButton);
 }
 
 function renderBossStage() {
   const boss = State.bossUnit.final_boss_node;
   const stage = boss.stages[State.bossStageIndex];
+  if (stage.mechanic === "reward_screen") {
+    renderBossReward(stage);
+    return;
+  }
   const container = $("#boss-step-container");
   const action = $("#boss-action-btn");
   const bossChar = (UNIT_CAST[State.bossUnit.unit_id] || UNIT_CAST[1]).boss;
   State.bossPhase = "answering";
   State.bossChoice = null;
-  $("#boss-footer").className = "duo-modal__footer lesson__foot";
+  const footer = $("#boss-footer");
+  footer.classList.remove("is-hidden");
+  footer.className = "duo-modal__footer lesson__foot";
   $("#boss-feedback-box").hidden = true;
   $("#boss-progress-bar").style.setProperty("--progress", `${((State.bossStageIndex + 1) / boss.stages.length) * 100}%`);
-  $("#boss-step-label").textContent = "";
+  $("#boss-step-label").textContent = `${State.bossStageIndex + 1}/${boss.stages.length}`;
   $("#boss-step-label").setAttribute("aria-label", `Страница ${State.bossStageIndex + 1} из ${boss.stages.length}`);
-  action.disabled = stage.mechanic !== "reward_screen";
-  action.className = `btn ${stage.mechanic === "reward_screen" ? "btn-success" : "btn-primary"} btn-lg btn-block`;
-  action.textContent = stage.mechanic === "reward_screen" ? "Продолжить · +100 очков" : "Проверить ответ";
-  $("#boss-scene").innerHTML = bossScene(bossChar, stage.mechanic === "reward_screen" ? "Афарин!" : boss.quest_title, stage.mechanic === "reward_screen");
-
-  if (stage.mechanic === "chat_choice") {
-    if (State.bossChatStage !== State.bossStageIndex) {
-      State.bossChat.push({ side: "npc", text: stage.npc_speech_ba || "", translation: stage.npc_speech_ru || stage.npc_speech_translation_ru || "" });
-      State.bossChatStage = State.bossStageIndex;
-      State.bossPlayerStage = -1;
-    }
-    container.innerHTML = `<div class="boss-chat dialog__chat" id="boss-chat" aria-live="polite"></div><div class="choice-list boss-choices dialog__choices">${stage.options.map((option, index) => `<button class="tile choice choice-btn" type="button" data-boss-choice="${index}"><span class="choice-marker"></span><span lang="ba">${esc(option.text_ba)}</span></button>`).join("")}</div>`;
-    renderBossChatMessages(true);
-    $$('[data-boss-choice]', container).forEach((button) => button.addEventListener("click", () => {
-      if (State.bossPhase !== "answering") return;
-      State.bossPhase = "selected";
-      State.bossChoice = stage.options[Number(button.dataset.bossChoice)];
-      State.bossPlayerStage = State.bossStageIndex;
-      State.bossChat.push({ side: "player", text: State.bossChoice.text_ba, translation: State.bossChoice.translation_ru || State.bossChoice.translation || "" });
-      button.classList.add("is-selected");
-      $(".boss-choices", container).classList.add("is-resolved");
-      renderBossChatMessages(true, button);
-      action.disabled = false;
-    }));
-  }
-  if (stage.mechanic === "reward_screen") {
-    container.innerHTML = `<div class="boss-reward"><div class="trophy-card"><span>Факт о Башкортостане</span><h3>${esc(stage.reward_trophy.title)}</h3><p>${esc(stage.reward_trophy.cultural_fact)}</p></div></div>`;
-    $("#boss-modal-title").textContent = "Афарин!";
+  action.disabled = true;
+  action.className = "btn btn-success btn-lg btn-block";
+  action.textContent = "Проверить";
+  const title = $("#boss-modal-title");
+  title.textContent = boss.quest_title;
+  title.hidden = true;
+  $("#modal-boss").dataset.stepType = stage.mechanic;
+  const enter = !State.sceneAnimated;
+  State.sceneAnimated = true;
+  $("#boss-scene").innerHTML = stageScene({ mode: "duo", accent: lessonAccent(), leftId: PLAYER_CHAR, rightId: bossChar, chip: boss.quest_title, enter });
+  observeStage($("[data-stage]", $("#boss-scene")));
+  container.innerHTML = `<div class="dialog__chat boss-chat" id="boss-chat" aria-live="polite"><div class="dialog__list"></div></div><p class="dialog__instruction">Выбери ответ</p><div class="choice-list boss-choices dialog__choices">${stage.options.map((option, index) => `<button class="tile choice choice-btn" type="button" data-boss-choice="${index}" style="--i:${index}"><span class="choice-marker"></span><span lang="ba">${esc(option.text_ba)}</span></button>`).join("")}</div>`;
+  const chat = $("#boss-chat");
+  if (State.bossChatStage !== State.bossStageIndex) {
+    State.bossChat = [];
+    State.bossChatStage = State.bossStageIndex;
+    const message = { side: "npc", text: stage.npc_speech_ba || "" };
+    State.bossChat.push(message);
+    npcSpeak(chat, message);
   } else {
-    $("#boss-modal-title").textContent = stage.task_prompt || boss.quest_title;
+    State.bossChat.forEach((message) => appendDialogBubble(chat, message, { animate: false }));
   }
+  $$('[data-boss-choice]', container).forEach((button) => button.addEventListener("click", () => {
+    if (State.bossPhase !== "answering") return;
+    State.bossPhase = "selected";
+    State.bossChoice = stage.options[Number(button.dataset.bossChoice)];
+    $$('[data-boss-choice]', container).forEach((item) => item.classList.remove("is-selected"));
+    button.classList.add("is-selected");
+    action.disabled = false;
+  }));
 }
 
 async function handleBossAction() {
   if (State.completing || !State.bossUnit) return;
-  const boss = State.bossUnit.final_boss_node;
-  const stage = boss.stages[State.bossStageIndex];
-  if (stage.mechanic === "reward_screen") {
-    await completeBoss();
+  blurActive();
+  if (State.bossPhase === "hearts-out") {
+    restartBoss();
     return;
   }
+  const boss = State.bossUnit.final_boss_node;
+  const stage = boss.stages[State.bossStageIndex];
   const action = $("#boss-action-btn");
   const feedback = $("#boss-feedback-box");
   if (["answering", "selected"].includes(State.bossPhase)) {
-    const correct = stage.mechanic === "chat_choice" && Boolean(State.bossChoice?.is_correct);
+    if (!State.bossChoice) return;
+    const correct = Boolean(State.bossChoice.is_correct);
     State.bossAnswers += 1;
     State.bossCorrect += Number(correct);
     State.bossPhase = "feedback";
-    const explanation = State.bossChoice?.error_hint || "Вспомни слова из карточек.";
-    reactToAnswer($("[data-boss-stage]", $("#boss-scene")), correct);
-    setState($("[data-player-stage]", $("#boss-scene")), correct ? "success" : "fail");
-    $(".chat-bubble--player:last-child", $("#boss-chat"))?.classList.add(correct ? "is-correct" : "is-wrong");
-    $("#boss-footer").className = `duo-modal__footer lesson__foot feedback-sheet is-open ${correct ? "" : "feedback-sheet--error"}`;
-    feedback.hidden = false;
-    feedback.innerHTML = `<span class="feedback-sheet__icon">${icon(correct ? "i-check" : "i-x")}</span><div><div class="feedback-sheet__title">${correct ? "Верно!" : "Попробуем разобраться"}</div><div class="feedback-sheet__text">${correct ? "Ответ принят." : esc(explanation)}</div></div>`;
-    action.className = `btn ${correct ? "btn-success" : "btn-danger"} btn-lg btn-block`;
-    action.textContent = correct ? "Дальше" : "Понятно";
-    action.disabled = false;
-    if (!correct) {
-      State.hearts = Math.max(0, State.hearts - 1);
-      updateTopBar();
-    }
+    action.disabled = true;
+    const container = $("#boss-step-container");
+    const chat = $("#boss-chat");
+    const scene = $("[data-stage]", $("#boss-scene"));
+    const selected = $(".choice-btn.is-selected", container);
+    $(".dialog__choices", container).classList.add("is-resolved");
+    setTimeout(() => $(".dialog__choices", container)?.classList.add("is-gone"), 260);
+    const playerMsg = { side: "player", text: State.bossChoice.text_ba };
+    State.bossChat.push(playerMsg);
+    const bubble = appendDialogBubble(chat, playerMsg, { from: selected });
+    talkAnim(scene, "player");
+    const finishCheck = () => {
+      bubble.classList.add(correct ? "is-correct" : "is-wrong");
+      setEmotion(scene, correct ? "success" : "fail", "player");
+      setEmotion(scene, correct ? "success" : "thinking", "npc");
+      if (!correct) {
+        const rightMsg = { side: "player", text: stage.options.find((option) => option.is_correct)?.text_ba || "", mark: "correct", caption: "Так правильно" };
+        State.bossChat.push(rightMsg);
+        appendDialogBubble(chat, rightMsg);
+        State.hearts = Math.max(0, State.hearts - 1);
+        updateTopBar();
+        if (State.hearts === 0) {
+          renderHeartsOut("boss");
+          return;
+        }
+      }
+      $("#boss-footer").className = `duo-modal__footer lesson__foot feedback-sheet is-open ${correct ? "" : "feedback-sheet--error"}`;
+      feedback.hidden = false;
+      const titles = ["Верно!", "Точно", "Так и есть"];
+      const explanation = State.bossChoice?.error_hint || "Вспомни слова из карточек.";
+      feedback.innerHTML = `<span class="feedback-sheet__icon">${icon(correct ? "i-check" : "i-x")}</span><div><div class="feedback-sheet__title">${correct ? titles[State.bossAnswers % titles.length] : "Попробуем разобраться"}</div><div class="feedback-sheet__text">${correct ? "Ответ принят." : esc(explanation)}</div></div>`;
+      action.className = `btn ${correct ? "btn-success" : "btn-danger"} btn-lg btn-block`;
+      action.textContent = correct ? "Дальше" : "Понятно";
+      action.disabled = false;
+    };
+    if (prefersReducedMotion()) finishCheck();
+    else setTimeout(finishCheck, 450);
   } else if (State.bossPhase === "feedback") {
     State.bossPhase = "typing";
     action.disabled = true;
-    const chat = $("#boss-chat");
-    chat.insertAdjacentHTML("beforeend", '<div class="chat-bubble chat-typing" aria-label="Персонаж печатает"><i></i><i></i><i></i></div>');
-    chat.scrollTop = chat.scrollHeight;
-    setTimeout(() => {
-      State.bossStageIndex += 1;
-      renderBossStage();
-    }, 600);
+    const scene = $("[data-stage]", $("#boss-scene"));
+    setEmotion(scene, "idle", "player");
+    setEmotion(scene, "idle", "npc");
+    State.bossStageIndex += 1;
+    renderBossStage();
   }
 }
 
-async function completeBoss() {
+function renderBossReward(stage) {
+  const bossChar = (UNIT_CAST[State.bossUnit.unit_id] || UNIT_CAST[1]).boss;
+  const title = $("#boss-modal-title");
+  title.textContent = "Афарин!";
+  title.hidden = true;
+  $("#boss-progress-bar").style.setProperty("--progress", "100%");
+  $("#boss-scene").innerHTML = "";
+  $("#boss-footer").classList.add("is-hidden");
+  $("#modal-boss").dataset.stepType = "reward_screen";
+  const container = $("#boss-step-container");
+  container.innerHTML = `<div class="result-screen"><div class="result result--reward">
+    <div class="result__hero result__hero--duo">${charWindow(PLAYER_CHAR, "left", "success")}${charWindow(bossChar, "right", "success")}</div>
+    <strong class="result__title" lang="ba">Афарин!</strong>
+    <div class="result-fact card"><strong>Факт о Башкортостане</strong><p><b>${esc(stage.reward_trophy.title)}.</b> ${esc(stage.reward_trophy.cultural_fact)}</p></div>
+    <div class="result__points" hidden>${icon("i-honey")}<span data-reward-points>0</span></div>
+    <button class="chip result__badge" type="button" data-reward-badge hidden></button>
+    <button class="btn btn-success btn-lg btn-block" type="button" data-reward-continue disabled>Сохраняем награду…</button>
+  </div></div>`;
+  $("[data-reward-continue]", container).addEventListener("click", finishBossReward);
+  completeBossReward();
+}
+
+async function completeBossReward() {
   const boss = State.bossUnit.final_boss_node;
   const score = State.bossAnswers ? Math.round((State.bossCorrect / State.bossAnswers) * 100) : 100;
   State.completing = true;
-  const action = $("#boss-action-btn");
-  setBusy(action, true, "Сохраняем награду…");
+  const previousBadges = new Set(State.user.badges || []);
   try {
     const response = await apiRequest(`/courses/units/${boss.unit_id}/complete`, {
       method: "POST",
@@ -1179,16 +1616,44 @@ async function completeBoss() {
     State.user.points = response.points;
     State.user.level = response.level;
     State.user.badges = response.badges || State.user.badges;
-    State.completing = false;
-    closeBoss();
-    updateTopBar();
-    await loadCourseUnits();
-    showToast(response.already_completed ? "Квест пройден повторно — повторные очки не начислены" : `Победа! +${response.awarded_xp} очков`);
+    State.bossCompletion = response;
+    const points = Number(response.awarded_xp) || 0;
+    if (points) {
+      $(".result__points").hidden = false;
+      countUp($("[data-reward-points]"), points, { prefix: "+" });
+    }
+    const newBadge = (State.user.badges || []).find((badge) => !previousBadges.has(badge) && AWARDS.some((award) => award.id === badge));
+    if (newBadge) {
+      const award = AWARDS.find((item) => item.id === newBadge);
+      const chip = $("[data-reward-badge]");
+      chip.hidden = false;
+      chip.innerHTML = `<img src="${award.img}" width="40" height="40" alt="" decoding="async"><span>Новая награда · ${esc(award.title)}</span>`;
+      chip.addEventListener("click", () => openAwardSheet(newBadge));
+    }
+    const button = $("[data-reward-continue]");
+    button.disabled = false;
+    button.textContent = "Продолжить";
   } catch (error) {
-    State.completing = false;
-    setBusy(action, false);
+    const button = $("[data-reward-continue]");
+    button.disabled = false;
+    button.textContent = "Повторить";
     showToast(error.message);
+  } finally {
+    State.completing = false;
   }
+}
+
+async function finishBossReward() {
+  if (!State.bossCompletion) {
+    await completeBossReward();
+    return;
+  }
+  const response = State.bossCompletion;
+  State.bossCompletion = null;
+  closeBoss();
+  updateTopBar();
+  await loadCourseUnits();
+  showToast(response.already_completed ? "Квест пройден повторно — повторные очки не начислены" : `Победа! +${formatNumber(response.awarded_xp)} очков`);
 }
 
 // ---------------------------------------------------------------------------
@@ -2361,11 +2826,22 @@ function bindEvents() {
     if (State.lessonPhase === "complete") closeLesson();
     else $("#lesson-exit-sheet").hidden = false;
   };
+  const requestBossClose = () => {
+    if ($("#modal-boss").dataset.stepType === "reward_screen") {
+      if (!State.completing) finishBossReward();
+      return;
+    }
+    $("#lesson-exit-sheet").hidden = false;
+  };
   $("#lesson-close").addEventListener("click", requestLessonClose);
   $("#lesson-stay").addEventListener("click", () => { $("#lesson-exit-sheet").hidden = true; });
-  $("#lesson-exit").addEventListener("click", closeLesson);
+  $("#lesson-exit").addEventListener("click", () => {
+    $("#lesson-exit-sheet").hidden = true;
+    if (!$("#modal-boss").hidden) closeBoss();
+    else closeLesson();
+  });
   $("#lesson-action-btn").addEventListener("click", handleLessonAction);
-  $("#boss-close").addEventListener("click", closeBoss);
+  $("#boss-close").addEventListener("click", requestBossClose);
   $("#boss-action-btn").addEventListener("click", handleBossAction);
   $("#language-close").addEventListener("click", () => { $("#language-sheet").hidden = true; });
   $("#language-current").addEventListener("click", () => { $("#language-sheet").hidden = true; });
@@ -2385,7 +2861,7 @@ function bindEvents() {
     if (!$("#language-sheet").hidden) $("#language-sheet").hidden = true;
     else if (!$("#lesson-exit-sheet").hidden) $("#lesson-exit-sheet").hidden = true;
     else if (!$("#modal-lesson").hidden) requestLessonClose();
-    else if (!$("#modal-boss").hidden) closeBoss();
+    else if (!$("#modal-boss").hidden) requestBossClose();
     else if (State.communityMode !== "library" && State.activeTab === "community") requestCommunityClose();
   });
   $("#daily-body").addEventListener("click", (event) => {
