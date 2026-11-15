@@ -388,8 +388,27 @@ def seed_answers(db: Session) -> int:
     return created
 
 
-def main() -> None:
+def ensure_seed_schema() -> None:
+    """Добавляет новые поля до запросов ORM к существующей базе."""
+    from sqlalchemy import inspect, text
+
     Base.metadata.create_all(bind=engine)
+    with engine.begin() as connection:
+        columns = {column["name"] for column in inspect(connection).get_columns("users")}
+        if "school_id" not in columns:
+            connection.execute(text("ALTER TABLE users ADD COLUMN school_id VARCHAR(64)"))
+        if "max_id" not in columns:
+            connection.execute(text("ALTER TABLE users ADD COLUMN max_id BIGINT"))
+        if "username" not in columns:
+            connection.execute(text("ALTER TABLE users ADD COLUMN username VARCHAR(255)"))
+        if "photo_url" not in columns:
+            connection.execute(text("ALTER TABLE users ADD COLUMN photo_url VARCHAR(512)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_users_school_id ON users (school_id)"))
+        connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_max_id ON users (max_id)"))
+
+
+def main() -> None:
+    ensure_seed_schema()
     db = SessionLocal()
     try:
         created_users, existing_users = seed_users(db)
