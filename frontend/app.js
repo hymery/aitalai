@@ -3018,6 +3018,16 @@ function setupLessonViewport() {
 
 async function init() {
   setupLessonViewport();
+  // MAX должен получить ready сразу, без ожидания справочника и авторизации.
+  if (currentPlatform() === "max") {
+    window.WebApp.ready?.();
+  } else {
+    const telegram = window.Telegram?.WebApp;
+    if (telegram) {
+      telegram.ready();
+      telegram.expand();
+    }
+  }
   aiDialogs = initAiDialogs({
     showToast,
     onPoints: (points) => {
@@ -3032,15 +3042,6 @@ async function init() {
   bindEvents();
   initClouds();
   await loadSchoolDirectory();
-  if (currentPlatform() === "max") {
-    window.WebApp.ready?.();
-  } else {
-    const telegram = window.Telegram?.WebApp;
-    if (telegram) {
-      telegram.ready();
-      telegram.expand();
-    }
-  }
   let sessionError = "";
   const token = getStoredToken();
   if (token) {
