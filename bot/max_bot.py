@@ -172,11 +172,10 @@ class MaxBot:
         return [{"type": "inline_keyboard", "payload": {"buttons": rows}}]
 
     def fallback_keyboard(self) -> list[dict[str, Any]]:
-        """Обычные ссылки, если MAX ещё не разрешает open_app для этого URL."""
+        """Обычная HTTPS-ссылка, если MAX ещё не разрешает open_app."""
         rows: list[list[dict[str, Any]]] = []
-        deeplink = self.miniapp_deeplink()
-        if deeplink:
-            rows.append([{"type": "link", "text": "Открыть в MAX", "url": deeplink}])
+        # ?startapp=1 без привязки мини-приложения показывает ошибку MAX,
+        # поэтому в запасном режиме остаётся только обычный браузерный адрес.
         if self.webapp_url:
             rows.append([{"type": "link", "text": "Открыть сайт", "url": self.webapp_url}])
         if not rows:
