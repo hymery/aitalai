@@ -154,6 +154,36 @@ jobs:
           curl -fsS --retry 6 --retry-all-errors --retry-delay 10 https://kruzhok-studio.online/miniapp/max -o /tmp/aitalai-max.html
           grep -qi '<!doctype html' /tmp/aitalai-max.html
 
+          python - <<'PY'
+          import json
+          import urllib.request
+
+          base = "https://kruzhok-studio.online"
+          def api(path, method="GET", payload=None, token=None, timeout=60):
+              headers = {"Accept": "application/json"}
+              data = None
+              if payload is not None:
+                  data = json.dumps(payload, ensure_ascii=False).encode()
+                  headers["Content-Type"] = "application/json"
+              if token:
+                  headers["Authorization"] = f"Bearer {token}"
+              request = urllib.request.Request(base + path, data=data, method=method, headers=headers)
+              with urllib.request.urlopen(request, timeout=timeout) as response:
+                  return json.load(response)
+
+          auth = api("/api/auth/login", "POST", {"email": "aigul@example.com", "password": "1234"})
+          token = auth["access_token"]
+          status = api("/api/ai/status", token=token)
+          assert status["enabled"] and status["daily_left"] > 0, status
+          session = api("/api/ai/sessions", "POST", {"mode": "tutor"}, token)
+          reply = api(
+              f"/api/ai/sessions/{session['session_id']}/messages", "POST",
+              {"text": "Что означает слово «рәхмәт»? Ответь коротко."}, token, timeout=120,
+          )
+          assert reply["reply_ba"] and reply["reply_ru"], reply
+          print(json.dumps({"ai_enabled": status["enabled"], "deepseek_reply": reply["reply_ba"]}, ensure_ascii=False))
+          PY
+
           export SSHPASS="$VPS_PASSWORD"
           SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -o ServerAliveInterval=30"
           VPS="root@201.34.153.206"
