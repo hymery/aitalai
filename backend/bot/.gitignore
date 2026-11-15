@@ -1,0 +1,9 @@
+.env
+bot.log
+bot.log.*
+users.json
+users.json.tmp
+__pycache__/
+*.py[cod]
+.venv/
+venv/
