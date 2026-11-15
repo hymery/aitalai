@@ -99,7 +99,11 @@ jobs:
             fi
             systemctl enable --now docker 2>/dev/null || true
             docker compose version
-            docker compose -f docker-compose.prod.yml up -d --build
+            if ! docker compose -f docker-compose.prod.yml up -d --build --remove-orphans; then
+              docker compose -f docker-compose.prod.yml ps -a
+              docker compose -f docker-compose.prod.yml logs --tail=200 backend db bot max-bot
+              exit 1
+            fi
             docker compose -f docker-compose.prod.yml ps
 
             for attempt in $(seq 1 36); do
