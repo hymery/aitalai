@@ -24,6 +24,9 @@ test-results/
 backend/.cache/
 backend/tts_cache/
 
+# Временные локальные помощники с доступами
+vps_ssh.py
+
 # Системные файлы
 .DS_Store
 Thumbs.db

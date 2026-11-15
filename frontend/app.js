@@ -606,14 +606,10 @@ function mouthPoint(stage, side = "") {
 function layoutSoloCloud(stage) {
   const cloud = $("[data-solo-cloud]", stage);
   if (!cloud) return;
-  const stageRect = stage.getBoundingClientRect();
-  if (!stageRect.height) return;
+  const cloudRect = cloud.getBoundingClientRect();
+  if (!cloudRect.height) return;
   const mouth = mouthPoint(stage);
-  const cloudH = cloud.offsetHeight;
-  const maxTop = Math.max(8, stageRect.height - 32 - cloudH - 8);
-  const top = Math.max(8, Math.min(mouth.y - stageRect.top - cloudH / 2, maxTop));
-  cloud.style.setProperty("--cloud-top", `${Math.round(top)}px`);
-  const tailY = Math.max(14, Math.min(mouth.y - stageRect.top - top, cloudH - 14));
+  const tailY = Math.max(14, Math.min(mouth.y - cloudRect.top, cloudRect.height - 14));
   cloud.style.setProperty("--tail-y", `${Math.round(tailY)}px`);
 }
 
@@ -688,11 +684,16 @@ function reactSolo(ok) {
 
 function shiftDialog(chat, animate = true) {
   const list = chat?.firstElementChild;
-  if (!list) return;
-  if (!animate) list.classList.add("is-instant");
-  const delta = Math.min(0, chat.clientHeight - list.scrollHeight);
-  list.style.transform = `translateY(${delta}px)`;
-  if (!animate) requestAnimationFrame(() => list.classList.remove("is-instant"));
+  const target = list?.lastElementChild;
+  if (!target) return;
+  list.style.removeProperty("transform");
+  requestAnimationFrame(() => {
+    if (!target.isConnected) return;
+    target.scrollIntoView({
+      block: "nearest",
+      behavior: animate && !prefersReducedMotion() ? "smooth" : "auto",
+    });
+  });
 }
 
 function dialogBubbleHtml(message) {
@@ -2985,7 +2986,23 @@ async function platformLogin() {
   return null;
 }
 
+function setupLessonViewport() {
+  const update = () => {
+    const telegramHeight = currentPlatform() === "telegram" ? window.Telegram?.WebApp?.viewportHeight : 0;
+    const height = telegramHeight || window.visualViewport?.height || window.innerHeight;
+    if (height > 0) document.documentElement.style.setProperty("--lesson-viewport-height", `${Math.round(height)}px`);
+  };
+  update();
+  window.addEventListener("resize", update);
+  window.addEventListener("orientationchange", update);
+  window.visualViewport?.addEventListener("resize", update);
+  window.visualViewport?.addEventListener("scroll", update);
+  window.Telegram?.WebApp?.onEvent?.("viewportChanged", update);
+  window.Telegram?.WebApp?.onEvent?.("safeAreaChanged", update);
+}
+
 async function init() {
+  setupLessonViewport();
   bindEvents();
   initClouds();
   await loadSchoolDirectory();

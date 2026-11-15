@@ -1,0 +1,98 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy application over SSH
+        env:
+          VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          MAX_BOT_TOKEN: ${{ secrets.MAX_BOT_TOKEN }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends sshpass rsync
+
+          export SSHPASS="$VPS_PASSWORD"
+          SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -o ServerAliveInterval=30"
+          VPS="root@201.34.153.206"
+
+          sshpass -e ssh $SSH_OPTS "$VPS" 'mkdir -p /opt/aitalai'
+          rsync -az --delete \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='.env' \
+            --exclude='node_modules/' \
+            --exclude='dist/' \
+            --exclude='.venv/' \
+            --exclude='input/' \
+            --exclude='dns-settings.png' \
+            -e "sshpass -e ssh $SSH_OPTS" ./ "$VPS":/opt/aitalai/
+
+          umask 077
+          POSTGRES_PASSWORD="$(openssl rand -hex 32)"
+          SECRET_KEY="$(openssl rand -hex 48)"
+          cat > .env.deploy <<ENV
+          DOMAIN=kruzhok-studio.online
+          POSTGRES_DB=bashkir_school
+          POSTGRES_USER=bashkir
+          POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+          SECRET_KEY=${SECRET_KEY}
+          JWT_ALGORITHM=HS256
+          ACCESS_TOKEN_EXPIRE_MINUTES=1440
+          TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+          MAX_BOT_TOKEN=${MAX_BOT_TOKEN}
+          PLATFORM_AUTH_TTL_SECONDS=86400
+          PLATFORM_AUTH_DEV_BYPASS=0
+          TTS_ENABLED=1
+          USE_MOCK=0
+          REMINDER_ENABLED=1
+          REMINDER_TIME=09:00
+          ENV
+
+          sshpass -e scp $SSH_OPTS .env.deploy "$VPS":/tmp/aitalai.env.new
+          rm .env.deploy
+
+          sshpass -e ssh $SSH_OPTS "$VPS" '
+            set -eu
+            cd /opt/aitalai
+            if [ ! -f .env ]; then
+              mv /tmp/aitalai.env.new .env
+            else
+              rm /tmp/aitalai.env.new
+            fi
+            chmod 600 .env
+
+            if ! command -v docker >/dev/null 2>&1; then
+              curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+              sh /tmp/get-docker.sh
+            fi
+            systemctl enable --now docker 2>/dev/null || true
+            docker compose version
+            docker compose -f docker-compose.prod.yml up -d --build
+            docker compose -f docker-compose.prod.yml ps
+
+            for attempt in $(seq 1 36); do
+              if docker compose -f docker-compose.prod.yml exec -T backend python -c "import urllib.request; print(urllib.request.urlopen(\"http://localhost:8000/health\").read().decode())"; then
+                exit 0
+              fi
+              sleep 10
+            done
+            docker compose -f docker-compose.prod.yml logs --tail=100
+            exit 1
+          '

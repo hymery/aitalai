@@ -123,9 +123,16 @@ class MaxBot:
             await self._session.close()
 
     async def request(
-        self, method: str, path: str, *, params: dict[str, Any] | None = None
+        self,
+        method: str,
+        path: str,
+        *,
+        params: dict[str, Any] | None = None,
+        payload: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        async with self.session.request(method, f"{API_BASE}{path}", params=params) as response:
+        async with self.session.request(
+            method, f"{API_BASE}{path}", params=params, json=payload
+        ) as response:
             raw = await response.text()
             if response.status >= 400:
                 raise RuntimeError(f"MAX API {response.status}: {raw[:300]}")
@@ -266,15 +273,28 @@ class MaxBot:
                 fired_on = None
             await asyncio.sleep(20)
 
+    async def configure(self) -> None:
+        me = await self.request("GET", "/me")
+        self.bot_username = str(me.get("username") or "").strip()
+        await self.request("PATCH", "/me/commands", payload={
+            "commands": [
+                {"name": "start", "description": "Главное меню"},
+                {"name": "task", "description": "Фрагмент дня"},
+                {"name": "progress", "description": "Мой прогресс"},
+                {"name": "notifications", "description": "Включить или выключить уведомления"},
+                {"name": "cancel", "description": "Отменить действие"},
+                {"name": "help", "description": "Список команд"},
+            ]
+        })
+        if self.bot_username:
+            logger.info("MAX-бот: @%s, диплинк %s", self.bot_username, self.miniapp_deeplink())
+
     async def poll(self) -> None:
         marker: int | None = None
         try:
-            me = await self.request("GET", "/me")
-            self.bot_username = str(me.get("username") or "").strip()
-            if self.bot_username:
-                logger.info("MAX-бот: @%s, диплинк %s", self.bot_username, self.miniapp_deeplink())
+            await self.configure()
         except (RuntimeError, aiohttp.ClientError, asyncio.TimeoutError) as exc:
-            logger.warning("Не удалось получить /me MAX-бота: %s", exc)
+            logger.warning("Не удалось настроить MAX-бота: %s", exc)
         reminders = asyncio.create_task(self.reminder_loop())
         try:
             while True:

@@ -50,6 +50,15 @@ docker compose up --build
 
 Бот раздаёт общий frontend на `http://localhost:8080`. Остановка: `docker compose down`; удаление базы вместе с контейнерами: `docker compose down -v`.
 
+## Production на VPS с HTTPS
+
+1. В DNS REG.RU удалите парковочную A-запись и укажите для домена A-запись на IP VPS. На сервере должны быть открыты порты `80` и `443`; SSH-порт `22` тоже должен быть доступен для настройки.
+2. Скопируйте `production.env.example` в корневой `.env`, укажите `DOMAIN` без `https://`, оба токена и длинные случайные `POSTGRES_PASSWORD` и `SECRET_KEY`.
+3. Запустите `docker compose -f docker-compose.prod.yml up -d --build`. Caddy автоматически выпустит и будет продлевать HTTPS-сертификат; сайт и API опубликуются на одном домене, API — по пути `/api`.
+4. Проверьте `docker compose -f docker-compose.prod.yml ps` и откройте `https://<домен>/api/health`. Данные PostgreSQL, реестры ботов, TTS и сертификаты сохраняются в Docker-томах.
+
+Production-конфигурация запускает Telegram- и MAX-ботов с автоматическим перезапуском. Для MAX дополнительно укажите `https://<домен>` в кабинете MAX для партнёров: **Чат-боты → ⋮ → Настройки → URL мини-приложения**. Не включайте `PLATFORM_AUTH_DEV_BYPASS` на публичном сервере.
+
 ## Ручной запуск: три терминала
 
 Backend:

@@ -1,0 +1,17 @@
+{$DOMAIN} {
+    encode zstd gzip
+
+    reverse_proxy frontend:80
+
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy strict-origin-when-cross-origin
+        Permissions-Policy "camera=(), geolocation=(), payment=()"
+        -Server
+    }
+
+    log {
+        output stdout
+        format console
+    }
+}

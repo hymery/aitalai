@@ -95,6 +95,22 @@ class MaxBotTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(await bot.send_daily_reminders("2026-11-14"), 0)
             await bot.close()
 
+    async def test_configure_updates_commands(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            bot = MaxBot("test", "https://example.com", MaxStore(Path(directory) / "max.json"))
+            bot.request = AsyncMock(side_effect=[{"username": "aitalai_bot"}, {}])  # type: ignore[method-assign]
+
+            await bot.configure()
+
+            self.assertEqual(bot.bot_username, "aitalai_bot")
+            configure_call = bot.request.await_args_list[1]
+            self.assertEqual(configure_call.args, ("PATCH", "/me/commands"))
+            commands = configure_call.kwargs["payload"]["commands"]
+            self.assertEqual(
+                [command["name"] for command in commands],
+                ["start", "task", "progress", "notifications", "cancel", "help"],
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

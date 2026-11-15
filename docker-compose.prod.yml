@@ -1,0 +1,113 @@
+name: aitalai
+
+services:
+  db:
+    image: postgres:15-alpine
+    env_file: .env
+    restart: unless-stopped
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build: ./backend
+    env_file: .env
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      PLATFORM_AUTH_DEV_BYPASS: "0"
+      TTS_CACHE_DIR: /app/tts_cache
+    command: sh -c "python seed.py && python build_courses.py && uvicorn main:app --host 0.0.0.0 --port 8000"
+    expose:
+      - "8000"
+    volumes:
+      - tts-cache:/app/tts_cache
+      - tts-models:/app/.cache
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: /api
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  bot:
+    build:
+      context: .
+      dockerfile: bot/Dockerfile
+    env_file: .env
+    restart: unless-stopped
+    environment:
+      API_URL: http://backend:8000
+      USE_MOCK: "0"
+      WEBAPP_DIR: /app/frontend
+      WEBAPP_URL: https://${DOMAIN}
+      MAX_WEBAPP_URL: https://${DOMAIN}
+      USERS_FILE: data/users.json
+      MAX_USERS_FILE: data/max_users.json
+    volumes:
+      - bot-data:/app/bot/data
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  max-bot:
+    build:
+      context: .
+      dockerfile: bot/Dockerfile
+    env_file: .env
+    restart: unless-stopped
+    command: python max_bot.py
+    environment:
+      API_URL: http://backend:8000
+      USE_MOCK: "0"
+      WEBAPP_URL: https://${DOMAIN}
+      MAX_WEBAPP_URL: https://${DOMAIN}
+      MAX_USERS_FILE: data/max_users.json
+    volumes:
+      - bot-data:/app/bot/data
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - frontend
+
+volumes:
+  postgres-data:
+  bot-data:
+  tts-cache:
+  tts-models:
+  caddy-data:
+  caddy-config:

@@ -3937,7 +3937,11 @@ button, .btn, .tile, .node, .duo-nav-tab { font-family: var(--font); }
 .duo-modal.lesson {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  min-height: 100dvh;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  height: var(--lesson-viewport-height, 100dvh);
+  min-height: 0;
   padding: 0;
   overflow: hidden;
   background: var(--white);
@@ -6822,20 +6826,31 @@ span.avatar__portrait { width: 100%; height: 100%; margin: 0; transform: none; }
    и переопределения внутри #modal-lesson / #modal-boss.
    ========================================================================== */
 
-/* Каркас: сцена сверху, рабочая зона тянется, футер липкий */
+/* Каркас: только основная область прокручивается, шапка и футер — строки grid. */
+#modal-lesson .lesson__top,
+#modal-boss .lesson__top,
+#modal-lesson .lesson__foot,
+#modal-boss .lesson__foot { position: relative; inset: auto; min-width: 0; }
 #modal-lesson .lesson__body,
-#modal-boss .lesson__body { display: flex; flex-direction: column; overflow: auto; }
-#modal-boss .lesson__body,
-#modal-lesson.lesson--dialog .lesson__body { overflow: hidden; }
+#modal-boss .lesson__body {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block: var(--s3);
+  -webkit-overflow-scrolling: touch;
+}
 #modal-lesson .lesson__task,
-#modal-boss .lesson__task { flex: 1 1 auto; min-height: 0; }
-#modal-lesson.lesson--dialog .lesson__task { overflow: hidden; }
+#modal-boss .lesson__task { flex: 0 0 auto; min-height: 0; }
+#modal-lesson.lesson--dialog .lesson__task { overflow: visible; }
 #modal-lesson .lesson-scene,
 #modal-boss .lesson-scene { flex: none; z-index: 2; }
 #modal-lesson .lesson-scene:has(.stage--v8),
 #modal-boss .lesson-scene:has(.stage--v8) { overflow: hidden; background: none; }
 #modal-lesson.lesson--dialog .lesson-scene,
-#modal-boss .lesson-scene { margin-bottom: calc(var(--s2) * -1); border-radius: 0; }
+#modal-boss .lesson-scene { margin-bottom: 0; border-radius: 0; }
 #lesson-scene:empty,
 #boss-scene:empty { display: none; }
 .lesson__foot.is-hidden { display: none; }
@@ -6918,18 +6933,26 @@ span.avatar__portrait { width: 100%; height: 100%; margin: 0; transform: none; }
 @keyframes char-shake8 { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
 @keyframes blank-pop8 { 50% { transform: scale(1.15); } }
 
-/* Облако у рта персонажа (solo) */
+/* Облако solo остаётся в потоке: длинный текст увеличивает всю сцену. */
+.lesson-scene .stage--v8.stage--solo {
+  display: flex;
+  height: auto;
+  min-height: var(--stage-h);
+  align-items: center;
+  padding: var(--s3);
+}
 .stage--v8 .cloud--solo {
-  position: absolute;
-  top: var(--cloud-top, var(--s3));
-  right: var(--s3);
-  left: calc(var(--cw) - 4vw - var(--s3));
+  position: relative;
+  inset: auto;
   z-index: 5;
+  width: auto;
   max-width: none;
-  margin: 0;
+  flex: 1 1 auto;
+  margin: 0 0 0 min(42%, calc(var(--cw) - 4vw - var(--s3)));
   font-size: var(--cloud-font-size, 22px);
   font-weight: 800;
   line-height: 1.3;
+  overflow-wrap: anywhere;
   transform-origin: 0 var(--tail-y, 24px);
   animation: cloud-solo-in8 300ms cubic-bezier(.34, 1.56, .64, 1) both;
 }
@@ -6938,7 +6961,7 @@ span.avatar__portrait { width: 100%; height: 100%; margin: 0; transform: none; }
   bottom: auto;
   left: -10px;
 }
-.stage--v8 .cloud--solo.cloud--wide { right: var(--s2); left: calc(var(--cw) - 4vw - var(--s4)); }
+.stage--v8 .cloud--solo.cloud--wide { width: auto; max-width: none; }
 @keyframes cloud-solo-in8 { from { transform: scale(.6); opacity: 0; } }
 .cloud__hint { display: flex; align-items: center; gap: var(--s2); margin-top: var(--s2); color: var(--ink-600); font-size: 14px; font-weight: 700; }
 .cloud__audio { float: left; width: 40px; height: 40px; margin: 0 var(--s2) 0 0; padding: 0; flex-basis: 40px; }
@@ -6954,35 +6977,31 @@ span.avatar__portrait { width: 100%; height: 100%; margin: 0; transform: none; }
 }
 .blank.is-filled { border-bottom-color: var(--blue-500); color: var(--blue-600); animation: blank-pop8 200ms; }
 
-/* Диалог: пузыри над чатом, хвост сверху от рта говорящего */
+/* Диалог: реплики идут друг за другом в нормальном потоке документа. */
 .dialog__chat {
   position: relative;
-  flex: 1 1 auto;
-  min-height: 96px;
-  overflow: hidden;
-  scrollbar-width: none;
+  flex: 0 0 auto;
+  min-height: 0;
+  overflow: visible;
 }
-.dialog__chat::-webkit-scrollbar { display: none; }
 .dialog__list {
-  position: absolute;
-  top: 0;
-  right: var(--s1);
-  left: var(--s1);
+  position: static;
   display: flex;
   flex-direction: column;
   gap: var(--s2);
-  padding-bottom: var(--s2);
-  transition: transform 300ms ease;
+  padding: var(--s1) var(--s1) var(--s2);
+  transform: none !important;
 }
-.dialog__list.is-instant { transition: none; }
+.dialog__list > * { flex: 0 0 auto; }
 .dialog__instruction { margin: var(--s2) 0 0; color: var(--ink-900); font-size: 18px; font-weight: 800; text-align: center; }
-.dialog__choices .choice { animation: choice-in8 300ms both; animation-delay: calc(var(--i, 0) * 60ms); }
+.dialog__choices { flex: 0 0 auto; }
+.dialog__choices .choice { height: auto; min-height: 56px; white-space: normal; animation: choice-in8 300ms both; animation-delay: calc(var(--i, 0) * 60ms); }
 .dialog__choices.is-resolved .choice:not(.is-selected) { animation: choice-out8 260ms both; }
 .dialog__choices.is-gone { display: none; }
 @keyframes choice-in8 { from { transform: translateY(12px); opacity: 0; } }
 @keyframes choice-out8 { to { transform: translateY(24px); opacity: 0; } }
 
-.dialog__chat .chat-bubble { max-width: 80%; margin: 0; font-size: var(--cloud-font-size, 20px); animation: none; }
+.dialog__chat .chat-bubble { max-width: 88%; height: auto; min-width: 0; margin: 0; overflow: visible; overflow-wrap: anywhere; font-size: var(--cloud-font-size, 20px); animation: none; }
 .dialog__chat .chat-bubble--npc { align-self: flex-start; }
 .dialog__chat .chat-bubble--player { align-self: flex-end; border-color: var(--blue-500); background: var(--blue-50); box-shadow: 0 var(--edge-depth, 4px) 0 color-mix(in srgb, var(--blue-500) 30%, var(--white)); }
 .dialog__chat .chat-bubble::after {
@@ -6996,8 +7015,11 @@ span.avatar__portrait { width: 100%; height: 100%; margin: 0; transform: none; }
   transform: rotate(45deg);
 }
 .dialog__chat .chat-bubble--player::after { border-color: var(--blue-500); }
-.chat-bubble__line { display: flex; align-items: center; gap: var(--s2); }
+.chat-bubble__line { display: flex; min-width: 0; align-items: flex-start; gap: var(--s2); }
+.chat-bubble__content { min-width: 0; flex: 1 1 auto; white-space: normal; overflow-wrap: anywhere; }
 .chat-bubble__tts { flex: 0 0 40px; width: 40px; height: 40px; padding: 0; }
+.chat-bubble__translate { display: flex; align-items: center; text-align: left; }
+.chat-bubble__translation { white-space: normal; overflow-wrap: anywhere; }
 .chat-bubble__caption { display: block; margin-top: var(--s1); color: var(--ink-600); font-size: 14px; font-weight: 700; }
 .chat-bubble.is-correct::before,
 .chat-bubble.is-wrong::before {
