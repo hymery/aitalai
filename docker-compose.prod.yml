@@ -80,7 +80,7 @@ services:
       API_URL: http://backend:8000
       USE_MOCK: "0"
       WEBAPP_URL: https://${DOMAIN}
-      MAX_WEBAPP_URL: https://${DOMAIN}
+      MAX_WEBAPP_URL: ${MAX_WEBAPP_URL}
       MAX_USERS_FILE: data/max_users.json
     volumes:
       - bot-data:/app/bot/data

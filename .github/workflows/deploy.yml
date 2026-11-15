@@ -72,6 +72,7 @@ jobs:
           ACCESS_TOKEN_EXPIRE_MINUTES=1440
           TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
           MAX_BOT_TOKEN=${MAX_BOT_TOKEN}
+          MAX_WEBAPP_URL=https://kruzhok-studio.online/miniapp/max
           PLATFORM_AUTH_TTL_SECONDS=86400
           PLATFORM_AUTH_DEV_BYPASS=0
           TTS_ENABLED=1
@@ -86,11 +87,17 @@ jobs:
           sshpass -e ssh $SSH_OPTS "$VPS" '
             set -eu
             cd /opt/aitalai
-            if [ ! -f .env ]; then
-              mv /tmp/aitalai.env.new .env
-            else
-              rm /tmp/aitalai.env.new
+            if [ -f .env ]; then
+              OLD_POSTGRES_PASSWORD="$(sed -n "s/^POSTGRES_PASSWORD=//p" .env | tail -n 1)"
+              OLD_SECRET_KEY="$(sed -n "s/^SECRET_KEY=//p" .env | tail -n 1)"
+              if [ -n "$OLD_POSTGRES_PASSWORD" ]; then
+                sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$OLD_POSTGRES_PASSWORD/" /tmp/aitalai.env.new
+              fi
+              if [ -n "$OLD_SECRET_KEY" ]; then
+                sed -i "s/^SECRET_KEY=.*/SECRET_KEY=$OLD_SECRET_KEY/" /tmp/aitalai.env.new
+              fi
             fi
+            mv /tmp/aitalai.env.new .env
             chmod 600 .env
 
             if ! command -v docker >/dev/null 2>&1; then
@@ -137,6 +144,8 @@ jobs:
           curl -fsS --retry 6 --retry-all-errors --retry-delay 10 https://kruzhok-studio.online/api/health
           curl -fsS --retry 6 --retry-all-errors --retry-delay 10 https://kruzhok-studio.online/ -o /tmp/aitalai-index.html
           grep -qi '<!doctype html' /tmp/aitalai-index.html
+          curl -fsS --retry 6 --retry-all-errors --retry-delay 10 https://kruzhok-studio.online/miniapp/max -o /tmp/aitalai-max.html
+          grep -qi '<!doctype html' /tmp/aitalai-max.html
 
           export SSHPASS="$VPS_PASSWORD"
           SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -o ServerAliveInterval=30"
