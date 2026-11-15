@@ -121,9 +121,9 @@ python max_bot.py
 
 Telegram требует публичный HTTPS-адрес Mini App. Поднимите HTTPS-туннель к frontend и укажите его в `bot/.env` как `WEBAPP_URL=https://...`, затем перезапустите бота. API тоже должен быть доступен по HTTPS: используйте `VITE_API_URL=/api` с reverse proxy на том же домене либо публичный HTTPS-адрес API, иначе возникнут ошибки `localhost` или mixed content. Для production разместите собранный `frontend/dist` на HTTPS-хостинге и настройте API.
 
-`USE_MOCK=0` — основной режим. Заглушки в `bot/api.py` и старом `bot/webapp` оставлены только для изолированной демонстрации. Регистрация выполняется в Mini App через `/auth/register`; бот не запрашивает email и пароль. Для привязанного аккаунта JWT сохраняется в `/bot/state`, а Mini App восстанавливает сессию по Telegram ID. Локальный реестр `users.json` также хранит JWT для персональных уведомлений; не публикуйте этот файл. Срок действия JWT задаётся `ACCESS_TOKEN_EXPIRE_MINUTES`.
+`USE_MOCK=0` — основной режим. Заглушки в `bot/api.py` и старом `bot/webapp` оставлены только для изолированной демонстрации. Отдельной регистрации внутри мини-приложений нет: Mini App отправляет `initData` платформы на `POST /auth/telegram` или `POST /auth/max`, backend проверяет подпись HMAC-SHA256 токеном бота (`TELEGRAM_BOT_TOKEN`, `MAX_BOT_TOKEN` в `backend/.env`) и автоматически создаёт или возвращает профиль; прогресс, очки и настройки существующих аккаунтов сохраняются. Форма email-входа (`/auth/register`, `/auth/login`) остаётся для браузерной версии. Для локальных проверок без платформы есть `PLATFORM_AUTH_DEV_BYPASS=1` — не включайте его на публичном сервере. Локальный реестр `users.json` также хранит JWT для персональных уведомлений; не публикуйте этот файл. Срок действия JWT задаётся `ACCESS_TOKEN_EXPIRE_MINUTES`.
 
-MAX-бот использует официальный `platform-api2.max.ru`, кнопку `open_app` для HTTPS-адреса и Long Polling для локальной разработки. Для production MAX рекомендует HTTPS webhook через `POST /subscriptions`; текущий модуль webhook не создаёт. Внешняя доставка Telegram/MAX требует настоящих токенов и отдельной проверки в соответствующих приложениях.
+MAX-бот использует официальный `platform-api2.max.ru`, кнопку `open_app` для HTTPS-адреса и Long Polling для локальной разработки. URL мини-приложения задаётся `MAX_WEBAPP_URL` (fallback — `WEBAPP_URL`) и должен быть привязан к боту в кабинете MAX для партнёров (Чат-боты → ⋮ → Настройки → URL мини-приложения), иначе MAX не откроет его внутри мессенджера. Бот дополнительно отправляет диплинк `https://max.ru/<bot>?startapp=1` — он открывает мини-приложение внутри MAX, а не сайт в браузере. Для production MAX рекомендует HTTPS webhook через `POST /subscriptions`; текущий модуль webhook не создаёт. Внешняя доставка Telegram/MAX требует настоящих токенов и отдельной проверки в соответствующих приложениях.
 
 ## Структура
 
@@ -139,6 +139,7 @@ MAX-бот использует официальный `platform-api2.max.ru`, �
 | Метод и путь | Назначение |
 |---|---|
 | `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `PATCH /auth/me` | аккаунт, JWT, школа и класс |
+| `POST /auth/telegram`, `POST /auth/max` | авто-вход мини-приложений по подписанной `init_data` |
 | `GET /schools?q=...&limit=20` | поиск по справочнику школ РБ |
 | `GET /courses/units` | три курса, прогресс и доступность этапов |
 | `GET /courses/units/{unit_id}` | карточки, квиз, упражнения и шаги истории |
@@ -159,9 +160,9 @@ MAX-бот использует официальный `platform-api2.max.ru`, �
 
 | Компонент | Переменные |
 |---|---|
-| backend | `DATABASE_URL`, `SECRET_KEY`, `JWT_ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES`, `TTS_ENABLED`, `TTS_MODEL_PATH`, `TTS_CACHE_DIR`, необязательный `HF_TOKEN` |
+| backend | `DATABASE_URL`, `SECRET_KEY`, `JWT_ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES`, `TELEGRAM_BOT_TOKEN`, `MAX_BOT_TOKEN`, `PLATFORM_AUTH_TTL_SECONDS`, `PLATFORM_AUTH_DEV_BYPASS`, `TTS_ENABLED`, `TTS_MODEL_PATH`, `TTS_CACHE_DIR`, необязательный `HF_TOKEN` |
 | frontend | `VITE_API_URL` — публичный URL API для браузера, задаётся до сборки |
-| bot | `TELEGRAM_BOT_TOKEN` (или `BOT_TOKEN`), `MAX_BOT_TOKEN`, `API_URL`, `USE_MOCK`, `WEBAPP_URL`, `WEBAPP_DIR`, `TELEGRAM_PROXY`, `REMINDER_*`, `USERS_FILE`, `MAX_USERS_FILE` |
+| bot | `TELEGRAM_BOT_TOKEN` (или `BOT_TOKEN`), `MAX_BOT_TOKEN`, `API_URL`, `USE_MOCK`, `WEBAPP_URL`, `MAX_WEBAPP_URL`, `WEBAPP_DIR`, `TELEGRAM_PROXY`, `REMINDER_*`, `USERS_FILE`, `MAX_USERS_FILE` |
 
 Примеры лежат в `.env.example` каждой папки. `.env`, базы, токены, `users.json` и `max_users.json` исключены из Git. Для публичного окружения обязательно замените `SECRET_KEY` и пароль PostgreSQL.
 
@@ -181,6 +182,7 @@ TTS использует Silero `v5_cis_base_nostress`, голос `bak_alfia`, 
 python -m compileall -q backend bot
 cd backend
 .\.venv\Scripts\python.exe -m unittest -v test_courses.py
+.\.venv\Scripts\python.exe -m unittest -v test_platform_auth.py
 cd ..\bot
 .\.venv\Scripts\python.exe -m unittest -v test_bots.py
 cd ..\frontend

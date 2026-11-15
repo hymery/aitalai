@@ -26,6 +26,11 @@ class User(Base):
     telegram_id: Mapped[int | None] = mapped_column(
         BigInteger, unique=True, nullable=True
     )
+    max_id: Mapped[int | None] = mapped_column(
+        BigInteger, unique=True, nullable=True
+    )
+    username: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    photo_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     email: Mapped[str | None] = mapped_column(
         String(255), unique=True, nullable=True
     )

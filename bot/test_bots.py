@@ -74,6 +74,12 @@ class MaxBotTest(unittest.IsolatedAsyncioTestCase):
             self.assertIn("Айгуль", send.await_args.args[1])
             self.assertEqual(bot.keyboard()[0]["payload"]["buttons"][0][0]["type"], "open_app")
 
+            # Диплинк-фолбэк: ведёт в мини-приложение внутри MAX, а не на сайт.
+            bot.bot_username = "aitalai_bot"
+            rows = bot.keyboard()[0]["payload"]["buttons"]
+            self.assertEqual(rows[1][0]["type"], "link")
+            self.assertEqual(rows[1][0]["url"], "https://max.ru/aitalai_bot?startapp=1")
+
             await bot.handle_update({
                 "update_type": "message_created",
                 "message": {

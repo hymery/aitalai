@@ -62,6 +62,7 @@ from schemas import (
     DailyTaskResponse,
     FragmentProposal,
     FragmentProposalResponse,
+    MaxAuth,
     ModerationResolve,
     SchoolDirectoryResponse,
     TelegramAuth,
@@ -72,6 +73,13 @@ from schemas import (
     UserResponse,
 )
 from tts import preload_tts, router as tts_router, tts_enabled
+from platform_auth import (
+    DEFAULT_TTL_SECONDS,
+    PlatformAuthError,
+    parse_max_user,
+    parse_telegram_user,
+    validate_init_data,
+)
 
 
 LOG_FILE = Path(__file__).resolve().with_name("app.log")
@@ -90,6 +98,20 @@ SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
 ALLOWED_ROLES = {"student", "teacher", "expert"}
+
+# Токены ботов нужны backend для проверки подписи initData мини-приложений.
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN") or os.getenv("BOT_TOKEN") or ""
+MAX_BOT_TOKEN = os.getenv("MAX_BOT_TOKEN") or ""
+PLATFORM_AUTH_TTL_SECONDS = int(
+    os.getenv("PLATFORM_AUTH_TTL_SECONDS", str(DEFAULT_TTL_SECONDS))
+)
+# Только для локальной разработки: позволяет входить по голому telegram_id/max_id.
+PLATFORM_AUTH_DEV_BYPASS = os.getenv("PLATFORM_AUTH_DEV_BYPASS", "").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 Period = Literal["day", "week", "month", "year", "all"]
 
 bearer_scheme = HTTPBearer(
@@ -106,6 +128,13 @@ def ensure_schema():
         if "school_id" not in columns:
             connection.execute(text("ALTER TABLE users ADD COLUMN school_id VARCHAR(64)"))
         connection.execute(text("CREATE INDEX IF NOT EXISTS ix_users_school_id ON users (school_id)"))
+        if "max_id" not in columns:
+            connection.execute(text("ALTER TABLE users ADD COLUMN max_id BIGINT"))
+        if "username" not in columns:
+            connection.execute(text("ALTER TABLE users ADD COLUMN username VARCHAR(255)"))
+        if "photo_url" not in columns:
+            connection.execute(text("ALTER TABLE users ADD COLUMN photo_url VARCHAR(512)"))
+        connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_max_id ON users (max_id)"))
     with Session(bind=engine) as db:
         changed = False
         for user in db.query(User).filter(User.school_id.is_(None), User.school.is_not(None)):
@@ -453,51 +482,183 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
     return build_auth_response(user)
 
 
-@app.post(
-    "/auth/telegram",
-    response_model=AuthResponse,
-    tags=["Авторизация"],
-    summary="Вход или регистрация через Telegram",
-    response_description="JWT-токен и данные пользователя Telegram.",
-)
-def telegram_auth(payload: TelegramAuth, db: Session = Depends(get_db)):
-    role = payload.role.strip().lower()
-    if role not in ALLOWED_ROLES:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Роль должна быть student, teacher или expert.",
-        )
-    school = resolve_school(payload.school_id, payload.school)
-    user = db.query(User).filter(User.telegram_id == payload.telegram_id).first()
+def upsert_platform_user(
+    db: Session,
+    *,
+    telegram_id: int | None = None,
+    max_id: int | None = None,
+    full_name: str,
+    username: str | None = None,
+    photo_url: str | None = None,
+    role: str = "student",
+    school_id: str | None = None,
+    school: str | None = None,
+    class_name: str | None = None,
+    lang_pair: str | None = "ba-ru",
+) -> User:
+    """Находит или создаёт профиль по идентификатору платформы.
+
+    Прогресс, роль и настройки существующего пользователя не трогаем:
+    платформа обновляет только имя, username и фото. Школа, класс и
+    языковая пара меняются, только если переданы явно (совместимость со
+    старым сценарием регистрации в Telegram Mini App).
+    """
+    if telegram_id is not None:
+        user = db.query(User).filter(User.telegram_id == telegram_id).first()
+    else:
+        user = db.query(User).filter(User.max_id == max_id).first()
+    resolved_school = resolve_school(school_id, school) if (school_id or school) else None
     if user is None:
         user = User(
-            telegram_id=payload.telegram_id,
-            full_name=payload.full_name,
+            telegram_id=telegram_id,
+            max_id=max_id,
+            full_name=full_name,
+            username=username,
+            photo_url=photo_url,
             role=role,
-            school_id=school["id"] if school else None,
-            school=school["name"] if school else None,
-            class_name=payload.class_name,
-            lang_pair=payload.lang_pair,
+            school_id=resolved_school["id"] if resolved_school else None,
+            school=resolved_school["name"] if resolved_school else None,
+            class_name=class_name,
+            lang_pair=lang_pair or "ba-ru",
             badges=[],
         )
         db.add(user)
+        logger.info(
+            "Создан профиль через мини-приложение: telegram_id=%s max_id=%s",
+            telegram_id,
+            max_id,
+        )
     else:
-        user.full_name = payload.full_name
-        if school:
-            user.school_id = school["id"]
-            user.school = school["name"]
-        if payload.class_name is not None:
-            user.class_name = payload.class_name
-        user.lang_pair = payload.lang_pair
+        if full_name:
+            user.full_name = full_name
+        if username is not None:
+            user.username = username
+        if photo_url is not None:
+            user.photo_url = photo_url
+        if resolved_school:
+            user.school_id = resolved_school["id"]
+            user.school = resolved_school["name"]
+        if class_name is not None:
+            user.class_name = class_name
+        if lang_pair is not None:
+            user.lang_pair = lang_pair
     try:
         db.commit()
     except IntegrityError:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Не удалось привязать Telegram-аккаунт.",
+            detail="Этот аккаунт платформы уже привязан к другому пользователю.",
         ) from None
     db.refresh(user)
+    return user
+
+
+@app.post(
+    "/auth/telegram",
+    response_model=AuthResponse,
+    tags=["Авторизация"],
+    summary="Вход или автоматическая регистрация через Telegram Mini App",
+    response_description="JWT-токен и данные пользователя Telegram.",
+)
+def telegram_auth(payload: TelegramAuth, db: Session = Depends(get_db)):
+    if payload.init_data:
+        if not TELEGRAM_BOT_TOKEN:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Вход через Telegram не настроен на сервере.",
+            )
+        try:
+            profile = parse_telegram_user(
+                validate_init_data(
+                    payload.init_data,
+                    TELEGRAM_BOT_TOKEN,
+                    ttl_seconds=PLATFORM_AUTH_TTL_SECONDS,
+                )
+            )
+        except PlatformAuthError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)
+            ) from None
+    elif PLATFORM_AUTH_DEV_BYPASS and payload.telegram_id is not None:
+        profile = {
+            "telegram_id": payload.telegram_id,
+            "full_name": (payload.full_name or "").strip() or "Ученик",
+            "username": None,
+            "photo_url": None,
+        }
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Откройте приложение из Telegram: данные авторизации не подтверждены.",
+        )
+    role = payload.role.strip().lower()
+    if role not in ALLOWED_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Роль должна быть student, teacher или expert.",
+        )
+    user = upsert_platform_user(
+        db,
+        telegram_id=profile["telegram_id"],
+        full_name=profile["full_name"],
+        username=profile["username"],
+        photo_url=profile["photo_url"],
+        role=role,
+        school_id=payload.school_id,
+        school=payload.school,
+        class_name=payload.class_name,
+        lang_pair=payload.lang_pair,
+    )
+    return build_auth_response(user)
+
+
+@app.post(
+    "/auth/max",
+    response_model=AuthResponse,
+    tags=["Авторизация"],
+    summary="Вход или автоматическая регистрация через MAX Mini App",
+    response_description="JWT-токен и данные пользователя MAX.",
+)
+def max_auth(payload: MaxAuth, db: Session = Depends(get_db)):
+    if payload.init_data:
+        if not MAX_BOT_TOKEN:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Вход через MAX не настроен на сервере.",
+            )
+        try:
+            profile = parse_max_user(
+                validate_init_data(
+                    payload.init_data,
+                    MAX_BOT_TOKEN,
+                    ttl_seconds=PLATFORM_AUTH_TTL_SECONDS,
+                )
+            )
+        except PlatformAuthError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)
+            ) from None
+    elif PLATFORM_AUTH_DEV_BYPASS and payload.max_id is not None:
+        profile = {
+            "max_id": payload.max_id,
+            "full_name": (payload.full_name or "").strip() or "Ученик",
+            "username": None,
+            "photo_url": None,
+        }
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Откройте приложение из MAX: данные авторизации не подтверждены.",
+        )
+    user = upsert_platform_user(
+        db,
+        max_id=profile["max_id"],
+        full_name=profile["full_name"],
+        username=profile["username"],
+        photo_url=profile["photo_url"],
+        lang_pair=None,
+    )
     return build_auth_response(user)
 
 

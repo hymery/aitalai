@@ -97,6 +97,7 @@ class MaxBot:
         self.webapp_url = (webapp_url or "").strip() or None
         self.store = store
         self.reminder_time = reminder_time
+        self.bot_username = ""
         self._session: aiohttp.ClientSession | None = None
 
     @property
@@ -130,18 +131,38 @@ class MaxBot:
                 raise RuntimeError(f"MAX API {response.status}: {raw[:300]}")
             return json.loads(raw) if raw.strip() else {}
 
+    def miniapp_deeplink(self) -> str | None:
+        """Диплинк, открывающий мини-приложение внутри MAX (кнопка «Открыть»).
+
+        Работает, когда URL мини-приложения привязан к боту в кабинете
+        MAX для партнёров (Чат-боты → Настройки).
+        """
+        if not self.bot_username:
+            return None
+        return f"https://max.ru/{self.bot_username}?startapp=1"
+
     def keyboard(self) -> list[dict[str, Any]]:
-        if not self.webapp_url:
-            return []
-        if self.webapp_url.startswith("https://"):
-            button = {
+        rows: list[list[dict[str, Any]]] = []
+        if self.webapp_url and self.webapp_url.startswith("https://"):
+            rows.append([{
                 "type": "open_app",
                 "text": "Открыть Әйтәләй",
                 "web_app": self.webapp_url,
-            }
-        else:
-            button = {"type": "link", "text": "Открыть Әйтәләй", "url": self.webapp_url}
-        return [{"type": "inline_keyboard", "payload": {"buttons": [[button]]}}]
+            }])
+        deeplink = self.miniapp_deeplink()
+        if deeplink:
+            # Фолбэк на случай, если кнопка open_app недоступна клиенту:
+            # ссылка ведёт не на сайт, а в мини-приложение внутри MAX.
+            rows.append([{
+                "type": "link",
+                "text": "Открыть в MAX",
+                "url": deeplink,
+            }])
+        if not rows and self.webapp_url:
+            rows.append([{"type": "link", "text": "Открыть Әйтәләй", "url": self.webapp_url}])
+        if not rows:
+            return []
+        return [{"type": "inline_keyboard", "payload": {"buttons": rows}}]
 
     async def send_message(self, user_id: int, text: str) -> dict[str, Any]:
         payload: dict[str, Any] = {"text": text}
@@ -247,6 +268,13 @@ class MaxBot:
 
     async def poll(self) -> None:
         marker: int | None = None
+        try:
+            me = await self.request("GET", "/me")
+            self.bot_username = str(me.get("username") or "").strip()
+            if self.bot_username:
+                logger.info("MAX-бот: @%s, диплинк %s", self.bot_username, self.miniapp_deeplink())
+        except (RuntimeError, aiohttp.ClientError, asyncio.TimeoutError) as exc:
+            logger.warning("Не удалось получить /me MAX-бота: %s", exc)
         reminders = asyncio.create_task(self.reminder_loop())
         try:
             while True:
@@ -281,12 +309,13 @@ async def main() -> None:
         store_path = BASE_DIR / store_path
     bot = MaxBot(
         token,
-        os.getenv("WEBAPP_URL"),
+        # URL, привязанный к боту в кабинете MAX для партнёров; fallback — общий WEBAPP_URL.
+        os.getenv("MAX_WEBAPP_URL") or os.getenv("WEBAPP_URL"),
         MaxStore(store_path),
         reminder_time=os.getenv("REMINDER_TIME") or "09:00",
     )
     try:
-        logger.info("MAX-бот запущен; WebApp: %s", bot.webapp_url or "не задан")
+        logger.info("MAX-бот запущен; мини-приложение: %s", bot.webapp_url or "не задано")
         await bot.poll()
     finally:
         await bot.close()

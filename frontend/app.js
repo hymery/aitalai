@@ -3,7 +3,6 @@ import {
   ApiError,
   API_URL,
   apiRequest,
-  fetchTelegramToken,
   getStoredToken,
   saveToken,
 } from "./api.js";
@@ -2622,8 +2621,10 @@ function handleProfileClick(event) {
   }
   if (target.hasAttribute("data-reminder-time")) { openReminderSheet(); return; }
   if (target.hasAttribute("data-telegram")) {
-    const connected = Boolean(window.Telegram?.WebApp?.initDataUnsafe?.user);
-    const { close } = openCabinetSheet(connected ? "Отключить Telegram?" : "Telegram", connected ? '<p>Управление привязкой доступно в настройках Telegram.</p><button class="btn btn-primary btn-lg btn-block" type="button" data-telegram-ok>Понятно</button>' : '<p>Откройте Әйтәләй через Telegram, чтобы вход сохранялся автоматически.</p><button class="btn btn-primary btn-lg btn-block" type="button" data-telegram-ok>Понятно</button>', "sheet--telegram");
+    const platform = currentPlatform();
+    const platformLabel = platform === "max" ? "MAX" : "Telegram";
+    const connected = Boolean(platform);
+    const { close } = openCabinetSheet(connected ? `Отключить ${platformLabel}?` : "Мини-приложение", connected ? `<p>Вы вошли через ${platformLabel}. Управление привязкой доступно в настройках ${platformLabel}.</p><button class="btn btn-primary btn-lg btn-block" type="button" data-telegram-ok>Понятно</button>` : '<p>Откройте Әйтәләй через Telegram или MAX, чтобы вход выполнялся автоматически без регистрации.</p><button class="btn btn-primary btn-lg btn-block" type="button" data-telegram-ok>Понятно</button>', "sheet--telegram");
     $("[data-telegram-ok]", document.body).addEventListener("click", close);
     return;
   }
@@ -2684,7 +2685,7 @@ function renderProfile() {
     <div class="cabinet-bento cabinet-block" style="--cabinet-index:2"><button class="stat-streak" type="button" ${streak ? "data-streak-card" : 'data-go-tab="course"'}>${streakContent}</button><button class="stat-small stat-small--points" type="button" data-go-tab="ratings">${icon("i-honey")}<strong data-cabinet-points>${formatNumber(previousPoints)}</strong><span>очков</span></button><button class="stat-small stat-small--stages" type="button" data-go-tab="course"><span class="stage-check">${icon("i-check")}</span><strong>${formatNumber(State.progress.size)}</strong><span>этапов курса</span></button></div>
     ${nearestBlock}
     <section class="awards-section cabinet-block" style="--cabinet-index:5"><div class="section-title-row"><h2>Награды</h2><span class="awards-count">${earnedCount}/${awards.length}<span class="mini-progress"><span style="width:${(earnedCount / awards.length) * 100}%"></span></span></span></div><div class="showcase ${firstCascade ? "showcase--first" : ""}">${showcase}</div></section>
-    <section class="settings-section cabinet-block" style="--cabinet-index:6"><h2>Настройки</h2>${settingsGroup("Обучение", [settingsRow("i-school", "Школа и класс", `${normalizeSchool(user.school) || "Не выбрана"}${user.class_name ? ` · ${user.class_name}` : ""}`, "data-school-settings"), settingsRow("i-globe", "Языковая пара", "Башкирский ↔ русский", "data-profile-language"), settingsSwitch("Озвучка", "autoVoice", "i-speaker")])}${settingsGroup("Уведомления", [settingsSwitch("Звук", "sound", "i-volume"), settingsSwitch("Напоминания", "reminders", "i-bell"), `<div class="reminder-time-wrap ${settings.reminders ? "is-visible" : ""}">${settingsRow("i-clock", "Время напоминания", settings.reminderTime, `data-reminder-time tabindex="${settings.reminders ? "0" : "-1"}"`)}</div>`, settingsRow("i-telegram", "Telegram", window.Telegram?.WebApp?.initDataUnsafe?.user ? "Подключён" : "Подключить", "data-telegram")])}${roleRows.join("")}${settingsGroup("О проекте", [settingsRow("i-info", "О проекте", "", "data-about"), settingsRow("i-book", "Помощь", "", "data-help")])}</section>
+    <section class="settings-section cabinet-block" style="--cabinet-index:6"><h2>Настройки</h2>${settingsGroup("Обучение", [settingsRow("i-school", "Школа и класс", `${normalizeSchool(user.school) || "Не выбрана"}${user.class_name ? ` · ${user.class_name}` : ""}`, "data-school-settings"), settingsRow("i-globe", "Языковая пара", "Башкирский ↔ русский", "data-profile-language"), settingsSwitch("Озвучка", "autoVoice", "i-speaker")])}${settingsGroup("Уведомления", [settingsSwitch("Звук", "sound", "i-volume"), settingsSwitch("Напоминания", "reminders", "i-bell"), `<div class="reminder-time-wrap ${settings.reminders ? "is-visible" : ""}">${settingsRow("i-clock", "Время напоминания", settings.reminderTime, `data-reminder-time tabindex="${settings.reminders ? "0" : "-1"}"`)}</div>`, settingsRow("i-telegram", currentPlatform() === "max" ? "MAX" : "Telegram", currentPlatform() ? "Подключён" : "Подключить", "data-telegram")])}${roleRows.join("")}${settingsGroup("О проекте", [settingsRow("i-info", "О проекте", "", "data-about"), settingsRow("i-book", "Помощь", "", "data-help")])}</section>
     <button id="logout-button" class="profile-logout cabinet-block" type="button" style="--cabinet-index:7">${icon("i-logout")}Выйти</button><span class="app-version">Әйтәләй · версия 7.0</span></div>`;
   container.onclick = handleProfileClick;
   State.avatarJustSaved = false;
@@ -2955,40 +2956,76 @@ function bindEvents() {
   $("#moderation-refresh").addEventListener("click", loadModeration);
 }
 
+// Платформа запуска: "max" внутри MAX Mini App, "telegram" внутри Telegram
+// Mini App, "" в обычном браузере. Подлинность данных проверяет backend,
+// здесь initData нужен только как «пропуск» для /auth/telegram и /auth/max.
+function currentPlatform() {
+  if (window.WebApp?.initData) return "max";
+  if (window.Telegram?.WebApp?.initData) return "telegram";
+  return "";
+}
+
+async function platformLogin() {
+  if (currentPlatform() === "max") {
+    $("#auth-status").textContent = "Входим через MAX…";
+    return apiRequest("/auth/max", {
+      method: "POST",
+      body: { init_data: window.WebApp.initData },
+      token: "",
+    });
+  }
+  if (currentPlatform() === "telegram") {
+    $("#auth-status").textContent = "Входим через Telegram…";
+    return apiRequest("/auth/telegram", {
+      method: "POST",
+      body: { init_data: window.Telegram.WebApp.initData },
+      token: "",
+    });
+  }
+  return null;
+}
+
 async function init() {
   bindEvents();
   initClouds();
   await loadSchoolDirectory();
-  const telegram = window.Telegram?.WebApp;
-  if (telegram) {
-    telegram.ready();
-    telegram.expand();
-  }
-  let token = getStoredToken();
-  if (!token) {
-    const telegramId = telegram?.initDataUnsafe?.user?.id;
-    if (telegramId) {
-      $("#auth-status").textContent = "Восстанавливаем вход через Telegram…";
-      try {
-        token = await fetchTelegramToken(telegramId);
-        if (token) saveToken(token);
-      } catch (error) {
-        if (error.status !== 404) $("#auth-status").textContent = error.message;
-      }
+  if (currentPlatform() === "max") {
+    window.WebApp.ready?.();
+  } else {
+    const telegram = window.Telegram?.WebApp;
+    if (telegram) {
+      telegram.ready();
+      telegram.expand();
     }
   }
-  if (!token) {
-    showAuth();
+  let sessionError = "";
+  const token = getStoredToken();
+  if (token) {
+    $("#auth-status").textContent = "Проверяем сохранённую сессию…";
+    try {
+      const user = await apiRequest("/auth/me", { token });
+      await finishAuth({ access_token: token, user });
+      return;
+    } catch (error) {
+      saveToken("");
+      if (error.status !== 401) {
+        showAuth(error.message);
+        return;
+      }
+      sessionError = "Сессия истекла. Войдите снова.";
+    }
+  }
+  try {
+    const payload = await platformLogin();
+    if (payload) {
+      await finishAuth(payload);
+      return;
+    }
+  } catch (error) {
+    showAuth(error.message);
     return;
   }
-  $("#auth-status").textContent = "Проверяем сохранённую сессию…";
-  try {
-    const user = await apiRequest("/auth/me", { token });
-    await finishAuth({ access_token: token, user });
-  } catch (error) {
-    saveToken("");
-    showAuth(error.status === 401 ? "Сессия истекла. Войдите снова." : error.message);
-  }
+  showAuth(sessionError);
 }
 
 document.addEventListener("DOMContentLoaded", init);

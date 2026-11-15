@@ -26,13 +26,28 @@ class UserRegister(BaseModel):
 
 
 class TelegramAuth(BaseModel):
-    telegram_id: int
-    full_name: str
+    """Вход через Telegram Mini App: подлинность доказывает init_data.
+
+    Поля telegram_id/full_name оставлены для обратной совместимости и
+    принимаются только при PLATFORM_AUTH_DEV_BYPASS=1 (локальная разработка).
+    """
+
+    init_data: str | None = None
+    telegram_id: int | None = None
+    full_name: str | None = None
     role: str = "student"
     school_id: str | None = None
     school: str | None = None
     class_name: str | None = None
     lang_pair: str = "ba-ru"
+
+
+class MaxAuth(BaseModel):
+    """Вход через MAX Mini App: подлинность доказывает init_data."""
+
+    init_data: str | None = None
+    max_id: int | None = None
+    full_name: str | None = None
 
 
 class UserProfileUpdate(BaseModel):
@@ -76,6 +91,9 @@ class TokenResponse(BaseModel):
 class UserResponse(ORMModel):
     id: int
     telegram_id: int | None
+    max_id: int | None = None
+    username: str | None = None
+    photo_url: str | None = None
     email: EmailStr | None
     full_name: str
     role: str
