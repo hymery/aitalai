@@ -8,6 +8,7 @@ COPY bot/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 COPY bot/ ./
 COPY frontend/ /app/frontend/
+COPY tools/certs/russiantrustedca.pem /app/tools/certs/russiantrustedca.pem
 
 ENV WEBAPP_DIR=/app/frontend
 EXPOSE 8080
