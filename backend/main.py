@@ -2059,7 +2059,11 @@ def list_ai_scenarios(db: Session = Depends(get_db), user: User = Depends(get_cu
             "unit_title": units.get(scenario["unit_id"]).title if units.get(scenario["unit_id"]) else scenario["title_ru"],
             "unlocked": bool(unit_progress and unit_progress.circle_1_done),
             "completed": bool(scenario_sessions),
-            "completed_today": any(item.finished_at and item.finished_at >= utc_day_start() for item in scenario_sessions),
+            "completed_today": any(
+                item.finished_at
+                and item.finished_at.replace(tzinfo=item.finished_at.tzinfo or timezone.utc) >= utc_day_start()
+                for item in scenario_sessions
+            ),
             "hint_chips": scenario["hint_chips"],
         })
     return result

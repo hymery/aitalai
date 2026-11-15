@@ -7217,8 +7217,10 @@ button, .tile, .choice-btn, .word-chip, .pair-btn, .chip, .flip {
   gap: var(--s2);
 }
 .dialog-card__top .chip {
+  min-width: 0;
   max-width: 150px;
   white-space: normal;
+  overflow-wrap: anywhere;
   text-align: center;
 }
 .dialog-scenario-card > p { flex: 1; color: var(--ink-600); }

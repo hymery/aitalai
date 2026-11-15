@@ -128,6 +128,8 @@ class AiDialogsTestCase(unittest.TestCase):
         self.assertEqual(repeated["points"], 0)
         self.assertEqual(repeated["total_points"], 30)
 
+        # SQLite возвращает naive datetime при новом чтении, как после перезапуска backend.
+        self.db.expire_all()
         scenarios = list_ai_scenarios(db=self.db, user=self.user)
         self.assertTrue(scenarios[0]["unlocked"])
         self.assertTrue(scenarios[0]["completed"])
@@ -181,6 +183,11 @@ class AiDialogsTestCase(unittest.TestCase):
         with self.assertRaises(HTTPException) as missing:
             get_ai_session(created["session_id"], db=self.db, user=other)
         self.assertEqual(missing.exception.status_code, 404)
+
+        reply = self.send(created["session_id"], "Что означает слово «рәхмәт»?")
+        self.assertEqual(reply.reply_ba, "Сәй бик тәмле.")
+        history = get_ai_session(created["session_id"], db=self.db, user=self.user)
+        self.assertEqual(len(history["messages"]), 3)
 
 
 if __name__ == "__main__":
