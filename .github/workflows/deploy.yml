@@ -99,6 +99,19 @@ jobs:
             fi
             systemctl enable --now docker 2>/dev/null || true
             docker compose version
+            docker compose -f docker-compose.prod.yml up -d db
+            set -a
+            . ./.env
+            set +a
+            for attempt in $(seq 1 30); do
+              if docker compose -f docker-compose.prod.yml exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c 'SELECT 1' >/dev/null 2>&1; then
+                break
+              fi
+              sleep 2
+            done
+            # PostgreSQL сохраняет пароль в data-томе: синхронизируем его с .env без потери данных.
+            docker compose -f docker-compose.prod.yml exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v pwd="$POSTGRES_PASSWORD" -c "ALTER USER $POSTGRES_USER PASSWORD :'pwd'"
+
             if ! docker compose -f docker-compose.prod.yml up -d --build --remove-orphans; then
               docker compose -f docker-compose.prod.yml ps -a
               docker compose -f docker-compose.prod.yml logs --tail=200 backend db bot max-bot
